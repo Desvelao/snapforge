@@ -22,12 +22,19 @@ fetch() { # fetch URL DEST
 }
 
 latest_version() {
+  tag=""
   if command -v curl >/dev/null 2>&1; then
-    tag=$(curl -fsSLI -o /dev/null -w '%{url_effective}' "$REPO_URL/latest") || return 1
+    tag=$(curl -fsSLI -o /dev/null -w '%{url_effective}' "$REPO_URL/latest" 2>/dev/null) || tag=""
   else
-    tag=$(wget -q --spider -S "$REPO_URL/latest" 2>&1 | sed -n 's/^ *[Ll]ocation: *//p' | tail -n 1) || return 1
+    tag=$(wget -q --spider -S "$REPO_URL/latest" 2>&1 | sed -n 's/^ *[Ll]ocation: *//p' | tail -n 1) || tag=""
   fi
   tag=${tag##*/}
+  case "$tag" in v[0-9]*) printf '%s\n' "${tag#v}"; return 0 ;; esac
+  # "latest" ignores pre-releases; fall back to the newest release of any kind (GitHub API).
+  api=${SNAPFORGE_API_URL:-https://api.github.com/repos/Desvelao/snapforge/releases?per_page=1}
+  fetch "$api" "$tmp_api" 2>/dev/null || return 1
+  tag=$(sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$tmp_api" | head -n 1)
+  [ -n "$tag" ] || return 1
   printf '%s\n' "${tag#v}"
 }
 
@@ -47,7 +54,9 @@ main() {
   version="${SNAPFORGE_VERSION:-}"
   if [ -z "$version" ]; then
     say "🔍 Looking for the latest release..."
+    tmp_api=$(mktemp)
     version=$(latest_version) && [ -n "$version" ] || die "could not find the latest release at $REPO_URL"
+    rm -f "$tmp_api"
   fi
   version=${version#v}
 

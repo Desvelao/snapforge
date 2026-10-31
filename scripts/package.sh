@@ -8,6 +8,8 @@ set -eu
 export ARCHES="x86_64 aarch64"
 TARGET_DIR=${CARGO_TARGET_DIR:-target}
 version=$(cargo pkgid -p guide-app | sed 's/.*[#@]//')
+# RPM forbids "-" in a version; "~" sorts a pre-release before the final release (0.1.0~alpha1 < 0.1.0).
+rpm_version=$(printf '%s' "$version" | tr '-' '~')
 
 echo "--- validating metadata"
 sh scripts/render-app.sh
@@ -48,9 +50,9 @@ for arch in x86_64 aarch64; do
 
   echo "--- rpm ($arch)"
   if [ -n "$triple" ]; then
-    cargo generate-rpm -p crates/guide-app --target "$triple" --target-dir "$TARGET_DIR" --arch "$arch" -o "dist/snapforge-${version}-1.${arch}.rpm"
+    cargo generate-rpm -p crates/guide-app --target "$triple" --target-dir "$TARGET_DIR" --arch "$arch" -s "version = \"$rpm_version\"" -o "dist/snapforge-${version}-1.${arch}.rpm"
   else
-    cargo generate-rpm -p crates/guide-app --target-dir "$TARGET_DIR" --arch "$arch" -o "dist/snapforge-${version}-1.${arch}.rpm"
+    cargo generate-rpm -p crates/guide-app --target-dir "$TARGET_DIR" --arch "$arch" -s "version = \"$rpm_version\"" -o "dist/snapforge-${version}-1.${arch}.rpm"
   fi
 done
 rm -rf dist/stage

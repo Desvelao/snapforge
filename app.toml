@@ -3,7 +3,7 @@
 # substitute it into generated files. Cargo.toml's version must match (enforced by a test).
 name = "SnapForge"
 # Semantic version shown by `--version`, `--help`, `--self-test` and in the GUI.
-version = "0.1.0"
+version = "0.1.0-alpha1"
 # Extension of a project folder (written without the dot).
 project_extension = "snapforgeproj"
 # Extension of a saved edit folder (an annotated screenshot), without the dot.

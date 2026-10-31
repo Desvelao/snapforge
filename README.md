@@ -40,14 +40,14 @@ Install for your user (no root) with one command; it downloads the latest releas
 and installs it:
 
 ```sh
-curl -fsSL https://github.com/Desvelao/snapforge/releases/latest/download/get.sh | sh
+curl -fsSL https://github.com/Desvelao/snapforge/releases/download/v0.1.0-alpha1/get.sh | sh
 ```
 
 Or do it by hand: download `snapforge-<version>-linux-<arch>.tar.gz` (x86_64 or aarch64) from the
 [releases page](https://github.com/Desvelao/snapforge/releases), then:
 
 ```sh
-export SNAPFORGE_VERSION=0.1.0 SNAPFORGE_ARCH=x86_64   # see the releases page; or aarch64
+export SNAPFORGE_VERSION=0.1.0-alpha1 SNAPFORGE_ARCH=x86_64   # see the releases page; or aarch64
 curl -fLO "https://github.com/Desvelao/snapforge/releases/download/v${SNAPFORGE_VERSION}/snapforge-${SNAPFORGE_VERSION}-linux-${SNAPFORGE_ARCH}.tar.gz"
 tar xzf snapforge-${SNAPFORGE_VERSION}-linux-${SNAPFORGE_ARCH}.tar.gz
 cd snapforge-${SNAPFORGE_VERSION}-linux-${SNAPFORGE_ARCH}
