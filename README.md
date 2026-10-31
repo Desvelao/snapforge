@@ -11,7 +11,7 @@ screenshots, or a numbered step-by-step guide that you can export as separate im
   caption, export them as separate images. Make the project a **guide** to add numbering, an introduction,
   final notes, a layout preview and the one-long-image export.
 * **Portable**: one executable, no installer and no root rights needed. Your projects are plain
-  folders (`.guideproj`) with PNG images and a JSON file.
+  folders (`.snapforgeproj`) with PNG images and a JSON file.
 
 ## Quick capture without the window (`snapforge gui`)
 
@@ -36,18 +36,28 @@ a window. See `docs/settings.md`. X11 only.
 
 ## Get it
 
-Download `snapforge-<version>-linux-<arch>.tar.gz` (x86_64 or aarch64) from the release, then:
+Install for your user (no root) with one command; it downloads the latest release, checks its checksum
+and installs it:
 
 ```sh
-tar xzf snapforge-0.1.0-linux-x86_64.tar.gz
-cd snapforge-0.1.0-linux-x86_64
+curl -fsSL https://github.com/Desvelao/snapforge/releases/latest/download/get.sh | sh
+```
+
+Or do it by hand: download `snapforge-<version>-linux-<arch>.tar.gz` (x86_64 or aarch64) from the
+[releases page](https://github.com/Desvelao/snapforge/releases), then:
+
+```sh
+export SNAPFORGE_VERSION=0.1.0 SNAPFORGE_ARCH=x86_64   # see the releases page; or aarch64
+curl -fLO "https://github.com/Desvelao/snapforge/releases/download/v${SNAPFORGE_VERSION}/snapforge-${SNAPFORGE_VERSION}-linux-${SNAPFORGE_ARCH}.tar.gz"
+tar xzf snapforge-${SNAPFORGE_VERSION}-linux-${SNAPFORGE_ARCH}.tar.gz
+cd snapforge-${SNAPFORGE_VERSION}-linux-${SNAPFORGE_ARCH}
 ./snapforge                 # run it right here, nothing is installed
 ./install.sh                # or: install for your user only (no root), adds a menu entry
 ```
 
 `.deb` and `.rpm` packages are provided too. See [docs/install.md](docs/install.md).
 
-**Status:** version 0.1.0. Capture and global shortcuts work on **X11** sessions. **Wayland capture is
+**Status:** Capture and global shortcuts work on **X11** sessions. **Wayland capture is
 not implemented yet.** Read [docs/platform-support.md](docs/platform-support.md) for what has and has
 not been tested before relying on it.
 

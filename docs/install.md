@@ -1,21 +1,64 @@
 # Installing the application
 
-The app needs no root rights to run or to install for yourself. Choose one:
+The app needs no root rights to run or to install for yourself.
 
-## 1. Portable (nothing is installed)
+## Quick install (default)
 
 ```sh
-tar xzf snapforge-0.1.0-linux-x86_64.tar.gz
-./snapforge-0.1.0-linux-x86_64/snapforge
+curl -fsSL https://github.com/Desvelao/snapforge/releases/latest/download/get.sh | sh
+```
+
+This downloads the latest release for your architecture, verifies its checksum and installs it for your
+user under `~/.local` (as method 2 below). Options:
+
+```sh
+curl -fsSL https://github.com/Desvelao/snapforge/releases/latest/download/get.sh | SNAPFORGE_VERSION=0.1.0 sh   # a specific version
+curl -fsSL https://github.com/Desvelao/snapforge/releases/latest/download/get.sh | sh -s -- --prefix ~/apps --dry-run
+```
+
+Prefer to read it first? Download `get.sh`, open it, then run `sh get.sh`. Remove the program later with
+`~/.local/share/snapforge/uninstall.sh`.
+
+## Manual install
+
+Choose one of the methods below.
+
+### 0. Download
+
+Packages are published on the [releases page](https://github.com/Desvelao/snapforge/releases).
+Set these once in your shell, then use the commands below as written:
+
+```sh
+export SNAPFORGE_VERSION=0.1.0     # a version listed on the releases page (tags are v<version>)
+export SNAPFORGE_ARCH=x86_64       # or aarch64
+export SNAPFORGE_DEB_ARCH=amd64    # .deb only: amd64, or arm64 on ARM
+export SNAPFORGE_URL="https://github.com/Desvelao/snapforge/releases/download/v${SNAPFORGE_VERSION}"
+```
+
+Each method below starts by downloading the file it needs. To check a download, fetch the checksums
+and verify (see [Verify the download](#verify-the-download)):
+
+```sh
+curl -fLO "$SNAPFORGE_URL/SHA256SUMS"
+```
+
+### 1. Portable (nothing is installed)
+
+```sh
+curl -fLO "$SNAPFORGE_URL/snapforge-${SNAPFORGE_VERSION}-linux-${SNAPFORGE_ARCH}.tar.gz"
+tar xzf snapforge-${SNAPFORGE_VERSION}-linux-${SNAPFORGE_ARCH}.tar.gz
+./snapforge-${SNAPFORGE_VERSION}-linux-${SNAPFORGE_ARCH}/snapforge
 ```
 
 Move the folder anywhere, put it on a USB stick, delete it when done. Settings live in
 `~/.config/snapforge/`, your guides wherever you save them.
 
-## 2. For your user (no root)
+### 2. For your user (no root)
+
+Download and unpack the archive as in method 1, then:
 
 ```sh
-cd snapforge-0.1.0-linux-x86_64
+cd snapforge-${SNAPFORGE_VERSION}-linux-${SNAPFORGE_ARCH}
 ./install.sh               # into ~/.local; use --prefix DIR for another place, --dry-run to preview
 ```
 
@@ -23,16 +66,25 @@ This copies the program, icons, menu entry and documentation under `~/.local` an
 what it wrote. Remove it with `~/.local/share/snapforge/uninstall.sh`. Your settings and guides are
 never deleted. If `~/.local/bin` is not on your `PATH`, start it from the menu.
 
-## 3. System packages (root needed to install)
+### 3. System packages (root needed to install)
+
+Download the package for your system first, then install it:
 
 ```sh
-sudo apt install ./snapforge_0.1.0_amd64.deb         # Debian, Ubuntu (use _arm64 on ARM)
-sudo dnf install ./snapforge-0.1.0-1.x86_64.rpm      # Fedora and similar (aarch64 on ARM)
+# Debian, Ubuntu
+curl -fLO "$SNAPFORGE_URL/snapforge_${SNAPFORGE_VERSION}_${SNAPFORGE_DEB_ARCH}.deb"
+sudo apt install ./snapforge_${SNAPFORGE_VERSION}_${SNAPFORGE_DEB_ARCH}.deb
+
+# Fedora and similar
+curl -fLO "$SNAPFORGE_URL/snapforge-${SNAPFORGE_VERSION}-1.${SNAPFORGE_ARCH}.rpm"
+sudo dnf install ./snapforge-${SNAPFORGE_VERSION}-1.${SNAPFORGE_ARCH}.rpm
 ```
 
 Remove with `sudo apt remove snapforge` / `sudo dnf remove snapforge`.
 
 ## Verify the download
+
+Run this in the folder holding the downloaded files and `SHA256SUMS`:
 
 ```sh
 sha256sum -c SHA256SUMS --ignore-missing
