@@ -224,6 +224,19 @@ pub fn apply(ctx: &egui::Context, choice: ThemeChoice) {
     });
 }
 
+/// Inner padding shared by every text field, so they all have the same height.
+pub const TEXT_MARGIN: egui::Margin = egui::Margin::symmetric(10, 8);
+
+/// A single-line text field with the shared padding.
+pub fn text_singleline(text: &mut String) -> egui::TextEdit<'_> {
+    egui::TextEdit::singleline(text).margin(TEXT_MARGIN)
+}
+
+/// A multi-line text field with the shared padding.
+pub fn text_multiline(text: &mut String) -> egui::TextEdit<'_> {
+    egui::TextEdit::multiline(text).margin(TEXT_MARGIN)
+}
+
 /// How prominent a [`Btn`] is. Only one accent button should be on screen at a time.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Emphasis {

@@ -61,7 +61,7 @@ fn clicks_become_guide_steps_with_an_optional_marker_and_the_original_stays_clea
     }
     let tmp = std::env::temp_dir().join(format!("snapforge-click-guide-{}", std::process::id()));
     let _ = fs::remove_dir_all(&tmp);
-    let proj_dir = tmp.join("g.guideproj");
+    let proj_dir = tmp.join(format!("g.{}", guide_core::PROJECT_EXTENSION));
     let guide = Project::new_guide("Click guide");
     let store = ProjectStore::create(&proj_dir, &guide).unwrap();
     store.save(&guide).unwrap();

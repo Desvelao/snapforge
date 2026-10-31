@@ -257,7 +257,7 @@ fn exporting_from_the_window_writes_safe_predictable_files() {
     let tmp = std::env::temp_dir().join(format!("guide-export-e2e-{}", std::process::id()));
     let _ = fs::remove_dir_all(&tmp);
     let (dir, cfg, rep): (PathBuf, PathBuf, PathBuf) = (
-        tmp.join("g.guideproj"),
+        tmp.join(format!("g.{}", guide_core::PROJECT_EXTENSION)),
         tmp.join("cfg"),
         tmp.join("guide.json"),
     );

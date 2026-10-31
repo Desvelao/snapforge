@@ -30,7 +30,7 @@ because the window is minimized during a session.
 Free space or fix permissions and press "Try again". Nothing is deleted while saving fails.
 
 **A guide will not open or shows problems.** The app recovers a damaged `project.json` from its
-`.bak` copy and keeps the damaged file. `snapforge --check <folder.guideproj>` lists problems without
+`.bak` copy and keeps the damaged file. `snapforge --check <folder.snapforgeproj>` lists problems without
 a display: exit 0 = fine, 1 = problems (such as missing screenshots), 2 = cannot be read.
 
 **Text is too small or large.** Settings > Appearance, or Ctrl+Plus / Ctrl+Minus / Ctrl+0.

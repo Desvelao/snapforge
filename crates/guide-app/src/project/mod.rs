@@ -228,15 +228,15 @@ pub fn slug(title: &str) -> String {
     guide_core::slug(title, 60, "guide")
 }
 
-/// `<parent>/<slug>.guideproj`, or `-2`, `-3`... if that already exists.
+/// `<parent>/<slug>.<project extension>`, or `-2`, `-3`... if that already exists.
 pub fn new_project_dir(parent: &Path, title: &str) -> PathBuf {
     let base = slug(title);
     (1u32..)
         .map(|n| {
             if n == 1 {
-                format!("{base}.guideproj")
+                format!("{base}.{}", guide_core::PROJECT_EXTENSION)
             } else {
-                format!("{base}-{n}.guideproj")
+                format!("{base}-{n}.{}", guide_core::PROJECT_EXTENSION)
             }
         })
         .map(|name| parent.join(name))
@@ -309,7 +309,7 @@ impl ProjectView {
         }
     }
 
-    /// Creates `<parent>/<slug of title>.guideproj` holding an empty project of `kind`.
+    /// Creates `<parent>/<slug of title>.<project extension>` holding an empty project of `kind`.
     pub fn create(parent: &Path, title: &str, kind: ProjectKind) -> Result<Self, String> {
         let title = if !title.trim().is_empty() {
             title.trim()
@@ -1932,10 +1932,9 @@ impl ProjectView {
         let label = theme::section_label(ui, if is_guide { tr("Title") } else { tr("Name") });
         changed |= ui
             .add(
-                egui::TextEdit::singleline(&mut self.project.name)
+                crate::theme::text_singleline(&mut self.project.name)
                     .hint_text(untitled)
-                    .desired_width(f32::INFINITY)
-                    .margin(egui::Margin::symmetric(10, 8)),
+                    .desired_width(f32::INFINITY),
             )
             .labelled_by(label.id)
             .changed();
@@ -1944,11 +1943,10 @@ impl ProjectView {
             let label = theme::section_label(ui, tr("Introduction"));
             changed |= ui
                 .add(
-                    egui::TextEdit::multiline(&mut g.introduction)
+                    crate::theme::text_multiline(&mut g.introduction)
                         .hint_text(tr("What will the reader learn?"))
                         .desired_rows(3)
-                        .desired_width(f32::INFINITY)
-                        .margin(egui::Margin::symmetric(10, 8)),
+                        .desired_width(f32::INFINITY),
                 )
                 .labelled_by(label.id)
                 .changed();
@@ -1956,11 +1954,10 @@ impl ProjectView {
             let label = theme::section_label(ui, tr("Final notes"));
             changed |= ui
                 .add(
-                    egui::TextEdit::multiline(&mut g.final_notes)
+                    crate::theme::text_multiline(&mut g.final_notes)
                         .hint_text(tr("Wrap-up, links, next steps"))
                         .desired_rows(3)
-                        .desired_width(f32::INFINITY)
-                        .margin(egui::Margin::symmetric(10, 8)),
+                        .desired_width(f32::INFINITY),
                 )
                 .labelled_by(label.id)
                 .changed();
@@ -1968,7 +1965,7 @@ impl ProjectView {
         ui.add_space(6.0);
         ui.horizontal(|ui| {
             ui.add(
-                egui::TextEdit::singleline(&mut self.import_path)
+                crate::theme::text_singleline(&mut self.import_path)
                     .font(egui::TextStyle::Monospace)
                     .hint_text(if is_guide {
                         tr("image file to add as a step")
@@ -2112,28 +2109,19 @@ impl ProjectView {
         let step = &mut self.project.items[index];
         let label = theme::section_label(ui, tr("Title"));
         let title = ui
-            .add(
-                egui::TextEdit::singleline(&mut step.title)
-                    .desired_width(f32::INFINITY)
-                    .margin(egui::Margin::symmetric(10, 8)),
-            )
+            .add(crate::theme::text_singleline(&mut step.title).desired_width(f32::INFINITY))
             .labelled_by(label.id);
         let label = theme::section_label(ui, tr("Description"));
         let description = ui
             .add(
-                egui::TextEdit::multiline(&mut step.description)
+                crate::theme::text_multiline(&mut step.description)
                     .desired_rows(3)
-                    .desired_width(f32::INFINITY)
-                    .margin(egui::Margin::symmetric(10, 8)),
+                    .desired_width(f32::INFINITY),
             )
             .labelled_by(label.id);
         let label = theme::section_label(ui, tr("Caption"));
         let caption = ui
-            .add(
-                egui::TextEdit::singleline(&mut step.caption)
-                    .desired_width(f32::INFINITY)
-                    .margin(egui::Margin::symmetric(10, 8)),
-            )
+            .add(crate::theme::text_singleline(&mut step.caption).desired_width(f32::INFINITY))
             .labelled_by(label.id);
         changed |= title.changed() | description.changed() | caption.changed();
         self.layout.title = Some(title.rect);
@@ -2521,7 +2509,7 @@ impl ProjectView {
                     tr("Choose the output folder"),
                 );
                 ui.add(
-                    egui::TextEdit::singleline(&mut self.export.dir)
+                    crate::theme::text_singleline(&mut self.export.dir)
                         .hint_text(tr("the project's exports folder"))
                         .desired_width(f32::INFINITY),
                 )
@@ -2797,10 +2785,16 @@ mod tests {
         let _ = std::fs::remove_dir_all(&tmp);
         std::fs::create_dir_all(&tmp).unwrap();
         let a = new_project_dir(&tmp, "My Guide");
-        assert_eq!(a.file_name().unwrap(), "my-guide.guideproj");
+        assert_eq!(
+            a.file_name().unwrap().to_string_lossy(),
+            format!("my-guide.{}", guide_core::PROJECT_EXTENSION)
+        );
         std::fs::create_dir_all(&a).unwrap();
         let b = new_project_dir(&tmp, "My Guide");
-        assert_eq!(b.file_name().unwrap(), "my-guide-2.guideproj");
+        assert_eq!(
+            b.file_name().unwrap().to_string_lossy(),
+            format!("my-guide-2.{}", guide_core::PROJECT_EXTENSION)
+        );
         std::fs::remove_dir_all(&tmp).unwrap();
     }
 
@@ -3121,11 +3115,10 @@ mod tests {
             "inserted right after the selected step, not at the end"
         );
         assert!(v.is_dirty());
-        assert!(v
-            .project
-            .items
-            .iter()
-            .all(|s| tmp.join("test-guide.guideproj").join(&s.image).exists()));
+        assert!(v.project.items.iter().all(|s| tmp
+            .join(format!("test-guide.{}", guide_core::PROJECT_EXTENSION))
+            .join(&s.image)
+            .exists()));
         std::fs::remove_dir_all(&tmp).unwrap();
     }
 

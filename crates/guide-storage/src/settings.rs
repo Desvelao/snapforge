@@ -861,8 +861,8 @@ mod tests {
         let s = Settings {
             language: "de".into(),
             theme: ThemeChoice::Light,
-            recent_projects: vec!["/a.guideproj".into(), "/b.guideproj".into()],
-            recent_edits: vec!["/c.guideedit".into()],
+            recent_projects: vec!["/a.proj".into(), "/b.proj".into()],
+            recent_edits: vec!["/c.edit".into()],
             ..Settings::default()
         };
         s.save(&path).unwrap();

@@ -22,15 +22,24 @@ pub use project::{
 };
 pub use shortcut::{canonical_key, find_duplicate, Action, Shortcut, ShortcutError, KEY_NAMES};
 
-/// Application display name, from `brand.toml` (read by `build.rs`).
+/// Application display name, from `app.toml` (read by `build.rs`).
 pub const APP_NAME: &str = env!("APP_DISPLAY_NAME");
+
+/// Application version, from `app.toml` (read by `build.rs`); `Cargo.toml` must match.
+pub const APP_VERSION: &str = env!("APP_VERSION");
+
+/// Extension of a project folder, without the dot, from `app.toml` (read by `build.rs`).
+pub const PROJECT_EXTENSION: &str = env!("PROJECT_EXTENSION");
+
+/// Extension of a saved edit folder, without the dot, from `app.toml` (read by `build.rs`).
+pub const EDIT_EXTENSION: &str = env!("EDIT_EXTENSION");
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn the_display_name_comes_from_the_brand_file() {
+    fn the_display_name_comes_from_the_app_file() {
         assert!(!APP_NAME.trim().is_empty());
         assert!(!APP_NAME.contains('"'));
     }

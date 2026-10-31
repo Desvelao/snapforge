@@ -91,8 +91,9 @@ impl ProfilePicker {
             Mode::New | Mode::Rename => {
                 let renaming = (self.mode == Mode::Rename).then_some(active);
                 ui.label(tr("Profile name"));
-                let edit =
-                    ui.add(egui::TextEdit::singleline(&mut self.text).char_limit(MAX_PROFILE_NAME));
+                let edit = ui.add(
+                    crate::theme::text_singleline(&mut self.text).char_limit(MAX_PROFILE_NAME),
+                );
                 if std::mem::take(&mut self.focus_pending) {
                     edit.request_focus();
                 }

@@ -12,7 +12,7 @@ Status: the project model (`guide-core`), project storage (`guide-storage`) and 
 
 ## Folder
 ```
-my-project.guideproj/
+my-project.snapforgeproj/
   project.json        the project; replaced atomically on every save
   project.json.bak    the previous save
   assets/             original screenshots, written once, never modified
@@ -111,8 +111,8 @@ These decide when the version number changes. They are what keeps old files work
   and needs a migration.
 - **Adding a new annotation type changes `schema_version` too.** An older version cannot keep an annotation it cannot read, so it
   must refuse the file with the clear "saved by a newer version" message instead of failing to parse it.
-- `crates/guide-storage/tests/fixtures/project-guide.guideproj` (a guide with every annotation type) and
-  `project-plain.guideproj` (a plain project) are hand-written format 1 projects. They are committed once and **must never be regenerated**: `make test` opens it, checks its content, and checks a save and
+- `crates/guide-storage/tests/fixtures/project-guide.snapforgeproj` (a guide with every annotation type) and
+  `project-plain.snapforgeproj` (a plain project) are hand-written format 1 projects. They are committed once and **must never be regenerated**: `make test` opens it, checks its content, and checks a save and
   reopen changes nothing. If that test fails, the change broke existing users' files; fix the code or add a migration, not the fixture.
 
 ## Keeping things apart
@@ -155,7 +155,7 @@ Exit codes: **0** healthy, **1** cannot be opened, **2** opens but has problems 
 Open the **Projects** section of the main window.
 
 - **New project:** choose **Guide** or **Plain project**, type a title and press Create. The project is a folder named after
-  the title (`<output folder>/<title>.guideproj`; `-2`, `-3`... if the name is taken).
+  the title (`<output folder>/<title>.snapforgeproj`; `-2`, `-3`... if the name is taken).
 - **Open project:** pick one from the recent list, or paste the folder path and press Open. A damaged `project.json` is
   recovered from the backup (you are told), and items with missing or unreadable screenshots are listed under "Problems"
   and marked `(!) image problem` in the list; the rest of the project stays usable.

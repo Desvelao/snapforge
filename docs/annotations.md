@@ -11,7 +11,7 @@ which part of the original is exported.
 
 ## Files
 ```
-shot.guideedit/
+shot.snapforgeedit/
   original.png        the screenshot, written once, never rewritten
   annotations.json    editable annotations, replaced atomically on every save
 ```
@@ -69,7 +69,7 @@ Crop (C), Eraser (X).
 - **Crop:** drag the area to keep. The original image is not changed; "Clear crop" or undo brings it back.
 - **Undo/redo:** Ctrl+Z, Ctrl+Y or Ctrl+Shift+Z. A whole drag, or a whole slider adjustment, is one step.
 - **View:** Ctrl+scroll (or a pinch) to zoom around the pointer, scroll to move the picture (Shift+scroll sideways), middle-drag or Space+drag to pan, `0` fits, `1` is 100%.
-- **Save edit (Ctrl+S):** writes `<output folder>/<timestamp>.guideedit`. Later saves update the same folder.
+- **Save edit (Ctrl+S):** writes `<output folder>/<timestamp>.snapforgeedit`. Later saves update the same folder.
   Reopen it from the "Saved edits" tab of the main window by pasting the folder path.
 - **Export image (Ctrl+E):** writes the flattened picture to the output folder in the chosen format.
 - **Preview export:** renders the exact final image on a background thread and shows it.

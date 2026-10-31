@@ -1,4 +1,4 @@
-//! Format regression test: `tests/fixtures/project-guide.guideproj` and `project-plain.guideproj` are
+//! Format regression test: `tests/fixtures/project-guide.<ext>` and `project-plain.<ext>` (`<ext>` is `project_extension` in `app.toml`) are
 //! hand-written projects in format version 1. It is committed once and must never be regenerated: every future build has
 //! to keep opening it with the same content. If this test fails after a change, the change
 //! broke existing users' files - add a migration (see docs/project-format.md) instead of
@@ -14,7 +14,7 @@ use guide_storage::ProjectStore;
 fn fixture(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures")
-        .join(format!("{name}.guideproj"))
+        .join(format!("{name}.{}", guide_core::PROJECT_EXTENSION))
 }
 
 fn copy_tree(from: &Path, to: &Path) {

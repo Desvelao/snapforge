@@ -10,7 +10,7 @@ mod profile_ui;
 mod project;
 mod theme;
 
-use guide_core::APP_NAME;
+use guide_core::{APP_NAME, APP_VERSION};
 
 /// Headless check used by `make portable-check` and `make test-x11`: takes
 /// one full-screen capture, loads the saved settings and registers the global
@@ -21,6 +21,7 @@ fn self_test() -> std::process::ExitCode {
 
     let mut ok = true;
     let backend = detect_backend();
+    println!("{APP_NAME} {APP_VERSION}");
     println!("backend: {}", backend.capabilities().backend);
     match backend.capture(&CaptureRequest {
         include_cursor: false,
@@ -82,7 +83,7 @@ capture screenshots, annotate them and organise them into projects and step-by-s
 
 Usage:
   snapforge                     open the application
-  snapforge --check <folder>    check a .guideproj project folder without a display
+  snapforge --check <folder>    check a project folder without a display
                                 (exit 0 = fine, 1 = cannot be opened, 2 = problems found)
   snapforge gui [--delay MS] [--path DIR]
                                 freeze the screen, drag a region, annotate, Enter copies it
@@ -204,15 +205,11 @@ fn main() -> eframe::Result {
             });
         }
         Some("--version" | "-V") => {
-            println!(
-                "{APP_NAME} {} ({})",
-                env!("CARGO_PKG_VERSION"),
-                std::env::consts::ARCH
-            );
+            println!("{APP_NAME} {} ({})", APP_VERSION, std::env::consts::ARCH);
             std::process::exit(0);
         }
         Some("--help" | "-h") => {
-            print!("{APP_NAME} - {HELP}");
+            print!("{APP_NAME} {APP_VERSION} - {HELP}");
             std::process::exit(0);
         }
         _ => {}

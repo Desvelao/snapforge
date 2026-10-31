@@ -10,7 +10,7 @@ TARGET_DIR=${CARGO_TARGET_DIR:-target}
 version=$(cargo pkgid -p guide-app | sed 's/.*[#@]//')
 
 echo "--- validating metadata"
-sh scripts/render-brand.sh
+sh scripts/render-app.sh
 desktop-file-validate dist/render/snapforge.desktop
 # The component id is not reverse-DNS yet; the two findings that follow from that are the only ones allowed.
 out=$(appstreamcli validate --no-net dist/render/snapforge.metainfo.xml 2>&1 || true)

@@ -363,7 +363,8 @@ impl Session {
                 && r["dirty"] == false
         });
         sleep(Duration::from_millis(300));
-        let dir = find_file(&self.out, ".guideedit").expect("a .guideedit folder was written");
+        let dir = find_file(&self.out, &format!(".{}", guide_core::EDIT_EXTENSION))
+            .expect("an edit folder was written");
         let (_, original, doc) = EditBundle::open(&dir).expect("the saved edit reopens");
         (original, doc, dir)
     }
@@ -754,7 +755,7 @@ fn line_ellipse_highlighter_eraser_resize_slider_zoom_pan_and_close_prompt() {
         s.exited().then_some(())
     });
     let (_, saved, _) = {
-        let dir = find_file(&s.out, ".guideedit").unwrap();
+        let dir = find_file(&s.out, &format!(".{}", guide_core::EDIT_EXTENSION)).unwrap();
         EditBundle::open(&dir)
             .map(|(b, o, d)| (b, d, o))
             .map(|(_, d, o)| (o.clone(), d, ()))

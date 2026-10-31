@@ -238,7 +238,10 @@ fn reorder_duplicate_edit_exclude_remove_open_in_editor_and_close() {
     let scale = std::env::var("SNAPFORGE_E2E_SCALE").unwrap_or_else(|_| "1".into());
     let tmp = std::env::temp_dir().join(format!("snapforge-guide-e2e-{}", std::process::id()));
     let _ = fs::remove_dir_all(&tmp);
-    let (proj_dir, cfg) = (tmp.join("proj.guideproj"), tmp.join("cfg"));
+    let (proj_dir, cfg) = (
+        tmp.join(format!("proj.{}", guide_core::PROJECT_EXTENSION)),
+        tmp.join("cfg"),
+    );
     let (guide_rep, editor_rep) = (tmp.join("guide.json"), tmp.join("editor.json"));
     fs::create_dir_all(cfg.join("snapforge")).unwrap();
     fs::write(

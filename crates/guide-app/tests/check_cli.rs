@@ -15,8 +15,10 @@ fn run(dir: &Path) -> (Option<i32>, String) {
 
 #[test]
 fn the_golden_fixture_checks_out() {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../guide-storage/tests/fixtures/project-guide.guideproj");
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+        "../guide-storage/tests/fixtures/project-guide.{}",
+        guide_core::PROJECT_EXTENSION
+    ));
     let (code, text) = run(&dir);
     assert_eq!(code, Some(0), "{text}");
     assert!(
@@ -65,7 +67,7 @@ fn version_and_help_need_no_display() {
             text.starts_with(&format!(
                 "{} {} (",
                 guide_core::APP_NAME,
-                env!("CARGO_PKG_VERSION")
+                guide_core::APP_VERSION
             )),
             "{text}"
         );

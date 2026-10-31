@@ -232,11 +232,11 @@ const TECHNICAL: &[&str] = &[
     "scaling",
     "stale",
     "step-{}",
-    "{base}-{n}.guideproj",
-    "{base}.guideproj",
+    "{base}-{n}.{}",
+    "{base}.{}",
     "{}-edited",
-    "{}-{n}.guideedit",
-    "{}.guideedit",
+    "{}-{n}.{}",
+    "{}.{}",
 ];
 
 /// The strict rule: every string literal that contains a word must be inside `tr`, `tr_fmt` or

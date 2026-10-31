@@ -21,7 +21,9 @@ use guide_capture::{
     CancelToken, CaptureBackend, CaptureError, CaptureMode, CaptureRequest, Monitor, Rect,
     Screenshot, WindowInfo,
 };
-use guide_core::{canonical_key, find_duplicate, Action, ModeChoice, Shortcut, APP_NAME};
+use guide_core::{
+    canonical_key, find_duplicate, Action, ModeChoice, Shortcut, APP_NAME, APP_VERSION,
+};
 use guide_core::{Document, ProjectKind};
 use guide_hotkeys::{HotkeyBackend, PointerBackend};
 use guide_storage::{
@@ -1177,6 +1179,8 @@ impl MainApp {
                     .size(20.0)
                     .family(theme::strong_family()),
             );
+            let version = format!("v{APP_VERSION}"); // i18n-ok
+            ui.label(egui::RichText::new(version).weak());
             let backend = format!("{} · {:.2}×", caps.backend, ui.ctx().pixels_per_point()); // i18n-ok
             theme::chip(ui, &backend).on_hover_text(tr_fmt(
                 "Capture backend: {backend} - UI scale {scale}x",
@@ -1419,11 +1423,10 @@ impl MainApp {
                 );
                 ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                     let label = ui.label(tr("Save to"));
-                    ui.add_sized(
-                        [ui.available_width().max(80.0), 32.0],
-                        egui::TextEdit::singleline(&mut self.out_dir)
+                    ui.add(
+                        crate::theme::text_singleline(&mut self.out_dir)
                             .font(egui::TextStyle::Monospace)
-                            .vertical_align(egui::Align::Center),
+                            .desired_width(f32::INFINITY),
                     )
                     .labelled_by(label.id);
                 });
@@ -1456,7 +1459,7 @@ impl MainApp {
             ui.selectable_value(&mut self.new_project_is_guide, false, tr("Plain project"))
                 .on_hover_text(tr("A set of screenshots to edit and export one by one"));
             ui.add(
-                egui::TextEdit::singleline(&mut self.new_project_title)
+                crate::theme::text_singleline(&mut self.new_project_title)
                     .hint_text(tr("title"))
                     .desired_width(220.0),
             );
@@ -1471,9 +1474,12 @@ impl MainApp {
         ui.horizontal(|ui| {
             ui.label(tr("Open project"));
             ui.add(
-                egui::TextEdit::singleline(&mut self.project_path)
+                crate::theme::text_singleline(&mut self.project_path)
                     .font(egui::TextStyle::Monospace)
-                    .hint_text(tr("path to a .guideproj folder"))
+                    .hint_text(tr_fmt(
+                        "path to a .{ext} folder",
+                        &[("ext", &guide_core::PROJECT_EXTENSION)],
+                    ))
                     .desired_width(320.0),
             );
             self.browsing.browse_button(
@@ -1481,7 +1487,10 @@ impl MainApp {
                 PathField::ProjectPath,
                 dialog::Kind::Folder,
                 &self.project_path,
-                tr("Choose a .guideproj folder"),
+                &tr_fmt(
+                    "Choose a .{ext} folder",
+                    &[("ext", &guide_core::PROJECT_EXTENSION)],
+                ),
             );
             if ui
                 .add_enabled(
@@ -1504,11 +1513,11 @@ impl MainApp {
         ui.horizontal(|ui| {
             ui.label(tr("Folder"));
             ui.add(
-                egui::TextEdit::singleline(&mut self.open_path)
+                crate::theme::text_singleline(&mut self.open_path)
                     .font(egui::TextStyle::Monospace)
                     .hint_text(tr_fmt(
-                        "e.g. ~/Pictures/{app}/2026-01-01_12-00-00.guideedit",
-                        &[("app", &APP_NAME)],
+                        "e.g. ~/Pictures/{app}/2026-01-01_12-00-00.{ext}",
+                        &[("app", &APP_NAME), ("ext", &guide_core::EDIT_EXTENSION)],
                     ))
                     .desired_width(380.0),
             );

@@ -1,7 +1,7 @@
 //! A project on disk.
 //!
 //! ```text
-//! my-project.guideproj/
+//! my-project.<project extension>/
 //!   project.json        the project (versioned, replaced atomically on every save)
 //!   project.json.bak    the previous save, used to recover if project.json is damaged
 //!   assets/             original screenshots, written once and never modified

@@ -35,7 +35,11 @@ struct Fixture {
 fn fixture(tag: &str, titles: &[&str]) -> Fixture {
     let root = dir(tag);
     let mut project = Project::new_guide("Change a setting");
-    let store = ProjectStore::create(&root.join("g.guideproj"), &project).unwrap();
+    let store = ProjectStore::create(
+        &root.join(format!("g.{}", guide_core::PROJECT_EXTENSION)),
+        &project,
+    )
+    .unwrap();
     for (i, t) in titles.iter().enumerate() {
         let rel = store
             .add_asset_rgba(320, 200, &solid(320, 200, COLOURS[i % 5]))
@@ -515,7 +519,11 @@ fn fake_png(width: u32, height: u32) -> Vec<u8> {
 fn an_oversized_combined_image_is_refused_up_front_with_alternatives() {
     let root = dir("huge");
     let mut project = Project::new_guide("Huge");
-    let store = ProjectStore::create(&root.join("g.guideproj"), &project).unwrap();
+    let store = ProjectStore::create(
+        &root.join(format!("g.{}", guide_core::PROJECT_EXTENSION)),
+        &project,
+    )
+    .unwrap();
     project.guide_mut().unwrap().composition.max_width = 10_000;
     project.guide_mut().unwrap().composition.image_scaling = ImageScaling::FillWidth;
     for i in 0..60 {

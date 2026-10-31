@@ -593,7 +593,7 @@ impl EditorView {
         self.commit.take().map(|d| (step, d))
     }
 
-    /// The `.guideedit` folder this edit is saved in, once it has been saved.
+    /// The edit folder this edit is saved in, once it has been saved.
     pub fn saved_dir(&self) -> Option<&std::path::Path> {
         self.bundle.as_ref().map(|b| b.dir())
     }
@@ -849,9 +849,9 @@ impl EditorView {
                 let mut n = 1;
                 let dir = loop {
                     let name = if n == 1 {
-                        format!("{}.guideedit", self.stem)
+                        format!("{}.{}", self.stem, guide_core::EDIT_EXTENSION)
                     } else {
-                        format!("{}-{n}.guideedit", self.stem)
+                        format!("{}-{n}.{}", self.stem, guide_core::EDIT_EXTENSION)
                     };
                     let dir = env.out_dir.join(name);
                     if !dir.exists() {
@@ -2082,7 +2082,7 @@ impl EditorView {
             .show(ctx, |ui| {
                 egui::Frame::popup(ui.style()).show(ui, |ui| {
                     let edit = ui.add(
-                        egui::TextEdit::multiline(&mut t.text)
+                        crate::theme::text_multiline(&mut t.text)
                             .desired_width(240.0)
                             .desired_rows(2)
                             .hint_text(tr(
@@ -2519,7 +2519,7 @@ mod tests {
         let ctx = egui::Context::default();
         let dir = std::env::temp_dir().join(format!("sg-editor-bundle-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
-        fs::create_dir_all(dir.join("shot.guideedit")).unwrap(); // the first name is taken
+        fs::create_dir_all(dir.join(format!("shot.{}", guide_core::EDIT_EXTENSION))).unwrap(); // the first name is taken
         let mut v = blank_view(&ctx);
         v.add(
             Kind::Rectangle {
@@ -2529,7 +2529,13 @@ mod tests {
         );
         v.save(&env_in(&dir, false));
         assert!(!v.is_dirty());
-        assert_eq!(v.saved_dir(), Some(dir.join("shot-2.guideedit").as_path()));
+        assert_eq!(
+            v.saved_dir(),
+            Some(
+                dir.join(format!("shot-2.{}", guide_core::EDIT_EXTENSION))
+                    .as_path()
+            )
+        );
         // A second save writes into the same folder instead of making another.
         v.add(
             Kind::Rectangle {
@@ -2540,8 +2546,16 @@ mod tests {
         assert!(v.is_dirty());
         v.save(&env_in(&dir, false));
         assert!(!v.is_dirty());
-        assert_eq!(v.saved_dir(), Some(dir.join("shot-2.guideedit").as_path()));
-        assert!(!dir.join("shot-3.guideedit").exists());
+        assert_eq!(
+            v.saved_dir(),
+            Some(
+                dir.join(format!("shot-2.{}", guide_core::EDIT_EXTENSION))
+                    .as_path()
+            )
+        );
+        assert!(!dir
+            .join(format!("shot-3.{}", guide_core::EDIT_EXTENSION))
+            .exists());
         fs::remove_dir_all(&dir).unwrap();
     }
 

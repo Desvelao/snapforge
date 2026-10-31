@@ -1,3 +1,10 @@
-# The product's display name. This is the only file that contains it: the build reads it
-# (crates/guide-core/build.rs), packaging scripts substitute it into generated files.
+# Application metadata: display name, version and project folder extension. This is the only
+# file that spells them: the build reads it (crates/guide-core/build.rs) and packaging scripts
+# substitute it into generated files. Cargo.toml's version must match (enforced by a test).
 name = "SnapForge"
+# Semantic version shown by `--version`, `--help`, `--self-test` and in the GUI.
+version = "0.1.0"
+# Extension of a project folder (written without the dot).
+project_extension = "snapforgeproj"
+# Extension of a saved edit folder (an annotated screenshot), without the dot.
+edit_extension = "snapforgeedit"

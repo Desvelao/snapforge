@@ -19,7 +19,7 @@ This is a Rust desktop app for Linux. It captures screenshots, annotates them, a
 - `guide-hotkeys`: global shortcuts (keysym, x11).
 - `guide-render`: compose, text, shapes, obscure (blur), resample.
 - `guide-export`: separate and combined image export.
-- `guide-storage`: settings, `.guideproj` project folder (PNGs + JSON manifest, atomic saves, backup recovery), `edit_bundle`, `image_out`.
+- `guide-storage`: settings, `.snapforgeproj` project folder (PNGs + JSON manifest, atomic saves, backup recovery), `edit_bundle`, `image_out`.
 - `guide-app`: the `snapforge` binary. `src/` has `main.rs`, `app.rs`, `gui.rs`, `check.rs`, `clipboard.rs`, `i18n.rs`, `theme.rs`, `editor/`, `guide/`. `tests/` holds the e2e suites. `locales/template.json` is the translation template.
 
 Elsewhere: `docs/` (install, platform support, settings, project format, testing, ...), `docker/`, `scripts/`, `packaging/`, `dist/` (build output, don't edit).

@@ -224,7 +224,7 @@ fn the_preview_matches_the_engine_and_the_controls_change_the_guide() {
     let tmp = std::env::temp_dir().join(format!("snapforge-comp-e2e-{}", std::process::id()));
     let _ = fs::remove_dir_all(&tmp);
     let (dir, cfg, rep) = (
-        tmp.join("g.guideproj"),
+        tmp.join(format!("g.{}", guide_core::PROJECT_EXTENSION)),
         tmp.join("cfg"),
         tmp.join("guide.json"),
     );

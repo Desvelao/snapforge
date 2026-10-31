@@ -1,7 +1,7 @@
 //! A saved edit: the untouched original screenshot plus its editable annotations.
 //!
 //! ```text
-//! shot.guideedit/
+//! shot.<edit extension>/
 //!   original.png        written once by `create`, never rewritten
 //!   annotations.json    versioned, replaced atomically on every save
 //! ```
