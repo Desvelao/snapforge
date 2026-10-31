@@ -1,0 +1,57 @@
+x-dev: &dev
+  build: { context: ., dockerfile: docker/Dockerfile, target: dev }
+  image: snapforge-dev
+  user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+  working_dir: /work
+  environment: { HOME: /tmp/home, LIBGL_ALWAYS_SOFTWARE: "1" }
+  volumes:
+    - .:/work
+    - cargo-registry:/usr/local/cargo/registry
+    - cargo-target:/work/target
+
+services:
+  test:
+    <<: *dev
+    command: cargo nextest run --workspace --no-tests=pass
+  test-x11:
+    <<: *dev
+    command: sh scripts/test-x11.sh
+  test-hidpi:
+    <<: *dev
+    command: sh scripts/test-hidpi.sh ${SCALE:-2} ${GEOMETRY:-3840x2160}
+  test-editor:
+    <<: *dev
+    command: sh scripts/test-editor.sh ${SCALE:-1}
+  test-guide:
+    <<: *dev
+    command: sh scripts/test-guide.sh ${SCALE:-1}
+  package:
+    <<: *dev
+    command: sh scripts/package.sh
+  icons:
+    <<: *dev
+    command: sh scripts/icons.sh
+  coverage:
+    <<: *dev
+    command: sh scripts/coverage.sh
+  lint:
+    <<: *dev
+    command: sh -c "cargo fmt --check && cargo clippy --workspace --all-targets -- -D warnings"
+  run:
+    <<: *dev
+    network_mode: host
+    environment: { HOME: /tmp/home, DISPLAY: "${DISPLAY}", XAUTHORITY: /tmp/.Xauthority }
+    volumes:
+      - .:/work
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-target:/work/target
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ${XAUTHORITY:-/dev/null}:/tmp/.Xauthority:ro
+    command: cargo run -p guide-app
+  dist:
+    <<: *dev
+    command: sh scripts/dist.sh
+
+volumes:
+  cargo-registry:
+  cargo-target:

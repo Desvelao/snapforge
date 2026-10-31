@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "project_id": "p-fedcba9876543210fedcba9876543210",
+  "name": "Golden plain project",
+  "kind": {
+    "type": "plain"
+  },
+  "items": [
+    {
+      "id": 1,
+      "title": "Before",
+      "description": "The window as it is.",
+      "caption": "Before the change",
+      "image": "assets/shot-golden-1.png",
+      "annotations": {
+        "version": 1,
+        "annotations": [
+          {
+            "id": 1,
+            "kind": {
+              "type": "Rectangle",
+              "rect": {
+                "x": 1.0,
+                "y": 1.0,
+                "w": 4.0,
+                "h": 3.0
+              }
+            },
+            "style": {
+              "color": [
+                230,
+                40,
+                40,
+                255
+              ],
+              "width": 2.0,
+              "fill": null
+            }
+          }
+        ],
+        "crop": null,
+        "next_id": 2
+      },
+      "included": true
+    },
+    {
+      "id": 2,
+      "title": "After",
+      "description": "",
+      "caption": "",
+      "image": "assets/shot-golden-2.png",
+      "annotations": {
+        "version": 1,
+        "annotations": [],
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "w": 6,
+          "h": 4
+        },
+        "next_id": 1
+      },
+      "included": false
+    }
+  ],
+  "next_item_id": 3
+}

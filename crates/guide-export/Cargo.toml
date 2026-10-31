@@ -1,0 +1,13 @@
+[package]
+name = "guide-export"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+guide-core = { path = "../guide-core" }
+guide-render = { path = "../guide-render" }
+guide-storage = { path = "../guide-storage" }
+
+[dev-dependencies]
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }

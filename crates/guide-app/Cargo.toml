@@ -1,0 +1,88 @@
+[package]
+name = "guide-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Capture screenshots, annotate them and build step-by-step guides"
+
+[[bin]]
+name = "snapforge"
+path = "src/main.rs"
+
+[dependencies]
+guide-core = { path = "../guide-core" }
+guide-capture = { path = "../guide-capture" }
+guide-storage = { path = "../guide-storage" }
+guide-hotkeys = { path = "../guide-hotkeys" }
+guide-render = { path = "../guide-render" }
+guide-export = { path = "../guide-export" }
+serde_json.workspace = true
+image = { version = "0.25", default-features = false, features = ["png"] }
+eframe = { version = "0.31", default-features = false, features = ["glow", "x11", "wayland", "default_fonts", "accesskit"] }
+rfd = { version = "0.15", default-features = false, features = ["xdg-portal", "async-std"] }
+pollster = "0.4"
+arboard = { version = "3", default-features = false, features = ["image-data"] }
+
+[dev-dependencies]
+x11rb = { version = "0.13", default-features = false, features = ["xtest"] }
+serde_json.workspace = true
+regex = { version = "1", default-features = false, features = ["std", "perf", "unicode-perl"] }
+
+# ---- native packages (scripts/package.sh) ----
+[package.metadata.deb]
+name = "snapforge"
+maintainer = "the contributors <noreply@snapforge.invalid>"
+copyright = "2026, the contributors"
+license-file = ["../../LICENSE", "0"]
+section = "graphics"
+priority = "optional"
+extended-description = """\
+This application takes screenshots of the screen, a monitor, a region or a window, \
+lets you annotate them, and assembles screenshots into a numbered guide that \
+can be exported as separate images or one long image. Capture works on X11."""
+depends = "libc6 (>= 2.35), libx11-6, libxcursor1, libxi6, libxrender1, libx11-xcb1, libxcb1, libxkbcommon0, libxkbcommon-x11-0, libegl1 | libgl1"
+assets = [
+    ["target/release/snapforge", "usr/bin/snapforge", "755"],
+    ["../../dist/render/snapforge.desktop", "usr/share/applications/snapforge.desktop", "644"],
+    ["../../dist/render/snapforge.metainfo.xml", "usr/share/metainfo/snapforge.metainfo.xml", "644"],
+    ["../../packaging/icons/hicolor/scalable/apps/snapforge.svg", "usr/share/icons/hicolor/scalable/apps/snapforge.svg", "644"],
+    ["../../packaging/icons/hicolor/16x16/apps/snapforge.png", "usr/share/icons/hicolor/16x16/apps/snapforge.png", "644"],
+    ["../../packaging/icons/hicolor/32x32/apps/snapforge.png", "usr/share/icons/hicolor/32x32/apps/snapforge.png", "644"],
+    ["../../packaging/icons/hicolor/48x48/apps/snapforge.png", "usr/share/icons/hicolor/48x48/apps/snapforge.png", "644"],
+    ["../../packaging/icons/hicolor/64x64/apps/snapforge.png", "usr/share/icons/hicolor/64x64/apps/snapforge.png", "644"],
+    ["../../packaging/icons/hicolor/128x128/apps/snapforge.png", "usr/share/icons/hicolor/128x128/apps/snapforge.png", "644"],
+    ["../../packaging/icons/hicolor/256x256/apps/snapforge.png", "usr/share/icons/hicolor/256x256/apps/snapforge.png", "644"],
+    ["../../THIRD-PARTY-LICENSES.txt", "usr/share/doc/snapforge/THIRD-PARTY-LICENSES.txt", "644"],
+    ["../../README.md", "usr/share/doc/snapforge/README.md", "644"],
+    ["../../docs/*.md", "usr/share/doc/snapforge/", "644"],
+]
+
+[package.metadata.generate-rpm]
+name = "snapforge"
+license = "MIT"
+summary = "Capture screenshots, annotate them and build step-by-step guides"
+assets = [
+    { source = "target/release/snapforge", dest = "/usr/bin/snapforge", mode = "755" },
+    { source = "dist/render/snapforge.desktop", dest = "/usr/share/applications/snapforge.desktop", mode = "644" },
+    { source = "dist/render/snapforge.metainfo.xml", dest = "/usr/share/metainfo/snapforge.metainfo.xml", mode = "644" },
+    { source = "packaging/icons/hicolor/scalable/apps/snapforge.svg", dest = "/usr/share/icons/hicolor/scalable/apps/snapforge.svg", mode = "644" },
+    { source = "packaging/icons/hicolor/16x16/apps/snapforge.png", dest = "/usr/share/icons/hicolor/16x16/apps/snapforge.png", mode = "644" },
+    { source = "packaging/icons/hicolor/32x32/apps/snapforge.png", dest = "/usr/share/icons/hicolor/32x32/apps/snapforge.png", mode = "644" },
+    { source = "packaging/icons/hicolor/48x48/apps/snapforge.png", dest = "/usr/share/icons/hicolor/48x48/apps/snapforge.png", mode = "644" },
+    { source = "packaging/icons/hicolor/64x64/apps/snapforge.png", dest = "/usr/share/icons/hicolor/64x64/apps/snapforge.png", mode = "644" },
+    { source = "packaging/icons/hicolor/128x128/apps/snapforge.png", dest = "/usr/share/icons/hicolor/128x128/apps/snapforge.png", mode = "644" },
+    { source = "packaging/icons/hicolor/256x256/apps/snapforge.png", dest = "/usr/share/icons/hicolor/256x256/apps/snapforge.png", mode = "644" },
+    { source = "LICENSE", dest = "/usr/share/licenses/snapforge/LICENSE", mode = "644", doc = false },
+    { source = "THIRD-PARTY-LICENSES.txt", dest = "/usr/share/doc/snapforge/THIRD-PARTY-LICENSES.txt", mode = "644", doc = true },
+    { source = "README.md", dest = "/usr/share/doc/snapforge/README.md", mode = "644", doc = true },
+]
+
+[package.metadata.generate-rpm.requires]
+libX11 = "*"
+libXcursor = "*"
+libXi = "*"
+libXrender = "*"
+libxcb = "*"
+libxkbcommon = "*"
+libxkbcommon-x11 = "*"
+libglvnd-egl = "*"

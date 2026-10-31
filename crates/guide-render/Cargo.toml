@@ -1,0 +1,11 @@
+[package]
+name = "guide-render"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+guide-core = { path = "../guide-core" }
+thiserror.workspace = true
+ab_glyph = "0.2"
+tiny-skia = { version = "0.11", default-features = false, features = ["std", "simd"] }

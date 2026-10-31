@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=@APP_NAME@
+GenericName=Screenshot and guide tool
+Comment=Capture screenshots, annotate them and build step-by-step guides
+Exec=snapforge
+Icon=snapforge
+Terminal=false
+Categories=Graphics;2DGraphics;
+Keywords=screenshot;screen capture;annotate;guide;tutorial;documentation;
+StartupWMClass=snapforge
+Actions=gui;
+
+[Desktop Action gui]
+Name=Capture a region (snapforge gui)
+Exec=snapforge gui

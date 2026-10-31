@@ -1,0 +1,15 @@
+[package]
+name = "guide-storage"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+guide-core = { path = "../guide-core" }
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
+
+[dev-dependencies]
+guide-render = { path = "../guide-render" }

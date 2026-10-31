@@ -1,0 +1,299 @@
+{
+  "schema_version": 1,
+  "project_id": "p-0123456789abcdef0123456789abcdef",
+  "name": "Golden guide",
+  "kind": {
+    "type": "guide",
+    "introduction": "This folder pins version 1 of the project format (guide). Do not regenerate it.",
+    "final_notes": "The end.",
+    "composition": {
+      "layout": "Vertical",
+      "background": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "text_color": [
+        32,
+        32,
+        32,
+        255
+      ],
+      "margin": 32,
+      "spacing": 24,
+      "max_width": 1200,
+      "font_size": 20.0,
+      "image_scaling": "ShrinkToFit",
+      "image_align": "Left",
+      "description_placement": "AboveImage",
+      "show_numbers": true,
+      "show_titles": true,
+      "show_descriptions": true,
+      "show_guide_title": true,
+      "show_introduction": true,
+      "show_final_notes": true
+    },
+    "step_layouts": {
+      "2": {
+        "max_width": 300,
+        "show_description": false
+      }
+    }
+  },
+  "items": [
+    {
+      "id": 1,
+      "title": "Open the menu",
+      "description": "Click the menu button.",
+      "caption": "The menu button",
+      "image": "assets/shot-golden-1.png",
+      "annotations": {
+        "version": 1,
+        "annotations": [
+          {
+            "id": 1,
+            "kind": {
+              "type": "Rectangle",
+              "rect": {
+                "x": 1.0,
+                "y": 1.0,
+                "w": 4.0,
+                "h": 3.0
+              }
+            },
+            "style": {
+              "color": [
+                230,
+                40,
+                40,
+                255
+              ],
+              "width": 2.0,
+              "fill": null
+            }
+          },
+          {
+            "id": 2,
+            "kind": {
+              "type": "Marker",
+              "center": {
+                "x": 6.0,
+                "y": 4.0
+              },
+              "number": 1,
+              "radius": 3.0
+            },
+            "style": {
+              "color": [
+                230,
+                40,
+                40,
+                255
+              ],
+              "width": 2.0,
+              "fill": null
+            }
+          },
+          {
+            "id": 3,
+            "kind": {
+              "type": "Text",
+              "at": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "text": "Hi",
+              "size": 8.0,
+              "bold": true
+            },
+            "style": {
+              "color": [
+                230,
+                40,
+                40,
+                255
+              ],
+              "width": 2.0,
+              "fill": null
+            }
+          },
+          {
+            "id": 4,
+            "kind": {
+              "type": "Obscure",
+              "rect": {
+                "x": 2.0,
+                "y": 2.0,
+                "w": 3.0,
+                "h": 2.0
+              },
+              "mode": "Pixelate",
+              "strength": 2
+            },
+            "style": {
+              "color": [
+                230,
+                40,
+                40,
+                255
+              ],
+              "width": 2.0,
+              "fill": null
+            }
+          },
+          {
+            "id": 5,
+            "kind": {
+              "type": "Arrow",
+              "from": {
+                "x": 0.0,
+                "y": 5.0
+              },
+              "to": {
+                "x": 4.0,
+                "y": 5.0
+              }
+            },
+            "style": {
+              "color": [
+                230,
+                40,
+                40,
+                255
+              ],
+              "width": 2.0,
+              "fill": null
+            }
+          },
+          {
+            "id": 6,
+            "kind": {
+              "type": "Pen",
+              "points": [
+                {
+                  "x": 1.0,
+                  "y": 1.0
+                },
+                {
+                  "x": 2.0,
+                  "y": 2.0
+                }
+              ]
+            },
+            "style": {
+              "color": [
+                230,
+                40,
+                40,
+                255
+              ],
+              "width": 2.0,
+              "fill": null
+            }
+          },
+          {
+            "id": 7,
+            "kind": {
+              "type": "Highlighter",
+              "points": [
+                {
+                  "x": 0.0,
+                  "y": 3.0
+                },
+                {
+                  "x": 7.0,
+                  "y": 3.0
+                }
+              ]
+            },
+            "style": {
+              "color": [
+                255,
+                235,
+                0,
+                110
+              ],
+              "width": 4.0,
+              "fill": null
+            }
+          },
+          {
+            "id": 8,
+            "kind": {
+              "type": "Line",
+              "from": {
+                "x": 0.0,
+                "y": 0.0
+              },
+              "to": {
+                "x": 7.0,
+                "y": 5.0
+              }
+            },
+            "style": {
+              "color": [
+                230,
+                40,
+                40,
+                255
+              ],
+              "width": 2.0,
+              "fill": null
+            }
+          },
+          {
+            "id": 9,
+            "kind": {
+              "type": "Ellipse",
+              "rect": {
+                "x": 3.0,
+                "y": 1.0,
+                "w": 4.0,
+                "h": 4.0
+              }
+            },
+            "style": {
+              "color": [
+                40,
+                110,
+                200,
+                255
+              ],
+              "width": 1.0,
+              "fill": [
+                255,
+                255,
+                255,
+                255
+              ]
+            }
+          }
+        ],
+        "crop": null,
+        "next_id": 10
+      },
+      "included": true
+    },
+    {
+      "id": 2,
+      "title": "Choose Settings",
+      "description": "",
+      "caption": "",
+      "image": "assets/shot-golden-2.png",
+      "annotations": {
+        "version": 1,
+        "annotations": [],
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "w": 6,
+          "h": 4
+        },
+        "next_id": 1
+      },
+      "included": false
+    }
+  ],
+  "next_item_id": 3
+}

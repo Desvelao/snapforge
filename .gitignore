@@ -1,0 +1,23 @@
+/target
+/dist
+
+# Added by git-repo-prep
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.tfstate*
+*.log
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+.claude/settings.local.json
+tasks.csv.lock
+tasks.csv
+tack.yaml

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <title>Application icon</title>
+  <rect width="256" height="256" rx="48" fill="#1f1710"/>
+  <!-- capture frame -->
+  <g fill="none" stroke="#ff8a3d" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M34 82 V46 a8 8 0 0 1 8-8 H78"/>
+    <path d="M178 38 H214 a8 8 0 0 1 8 8 V82"/>
+    <path d="M222 174 V210 a8 8 0 0 1-8 8 H178"/>
+    <path d="M78 218 H42 a8 8 0 0 1-8-8 V174"/>
+  </g>
+  <!-- the anvil: flat face, horn on the left, waist and base -->
+  <path d="M56 158 H200 V174 H180 C170 174 168 184 168 190 H184 V208 H72 V190 H88 C88 184 86 174 76 174 C66 174 58 168 56 158 Z" fill="#f6ebdd"/>
+  <!-- the spark struck from it -->
+  <path d="M128 56 L140 92 L178 104 L140 116 L128 152 L116 116 L78 104 L116 92 Z" fill="#ff8a3d" stroke="#ff8a3d" stroke-width="6" stroke-linejoin="round"/>
+  <circle cx="176" cy="68" r="7" fill="#ffd27a"/>
+  <circle cx="84" cy="72" r="5" fill="#ffd27a"/>
+</svg>

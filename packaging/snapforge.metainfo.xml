@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>snapforge</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>@APP_NAME@</name>
+  <summary>Capture screenshots, annotate them and build step-by-step guides</summary>
+  <description>
+    <p>
+      @APP_NAME@ takes screenshots of the whole screen, a monitor, a region or a window, lets you
+      annotate them with arrows, text, markers and blur, and assembles several screenshots into a
+      numbered guide that you can export as separate images or one long image.
+    </p>
+    <p>
+      It is a single self-contained program: it needs no installation rights and keeps its
+      projects as plain folders. Capture currently works on X11 sessions only.
+    </p>
+  </description>
+  <launchable type="desktop-id">snapforge.desktop</launchable>
+  <provides><binary>snapforge</binary></provides>
+  <categories><category>Graphics</category><category>Utility</category></categories>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="2026-10-29"/>
+  </releases>
+</component>

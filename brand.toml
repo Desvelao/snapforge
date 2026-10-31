@@ -1,0 +1,3 @@
+# The product's display name. This is the only file that contains it: the build reads it
+# (crates/guide-core/build.rs), packaging scripts substitute it into generated files.
+name = "SnapForge"
