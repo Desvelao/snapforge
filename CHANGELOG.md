@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+## 0.1.0-alpha2 - 2026-11-05
+
+- Editor keyboard access: the arrow keys move the selected annotation (Shift: 10 px; repeated nudges are one undo step), Tab / Shift+Tab cycle the selection while the canvas has focus, and screen readers hear the annotation count and the selected one on the canvas.
+
+- The Projects tab now preselects **Plain** (formerly "Plain project") when creating a new project (it was Guide).
+
+- New project type **Diff**: a previous and a post screenshot composed into one image, side by side or one above
+  the other, with an optional header (title and description) and a caption under each screenshot. Create it from
+  the Projects tab; export it as one combined image. `snapforge --check` validates it (two screenshots, image size).
+
+- New setting "Show the window again after a capture": turn it off to keep the window minimized while
+  captures are added to an open project.
+
+- Repeat the last capture: the **Repeat last capture** button or `Ctrl+Shift+A` takes the same full screen,
+  monitor, region or window again without the selection step. A window is found again by its title if its
+  id is gone. If the window, monitor or region no longer exists the status says so. It is remembered only
+  until the program closes.
+
+- Desktop notifications after taking a screenshot (can be switched off separately), copying a screenshot, saving an image or an edit, saving a project (not on
+  autosave) and finishing an export. The command is configurable under Settings > Notifications, which also
+  has a button to send a test notification. Default: `notify-send` (libnotify), optional.
+
 ## 0.1.0-alpha1 - 2026-10-31
 
 First (alpha) release.

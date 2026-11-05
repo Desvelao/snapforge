@@ -6,6 +6,7 @@ mod dialog;
 mod editor;
 mod gui;
 mod i18n;
+mod notify;
 mod profile_ui;
 mod project;
 mod theme;

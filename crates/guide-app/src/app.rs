@@ -10,16 +10,16 @@ use crate::i18n::{tr, tr_fmt, tr_n};
 use crate::{
     dialog,
     editor::{self, props::Props, EditorView},
-    i18n,
+    i18n, notify,
     profile_ui::{ProfilePicker, ProfileRequest},
     project::{ProjectBar, ProjectCommand, ProjectView},
     theme,
 };
 use eframe::egui::{self, ColorImage, TextureHandle, TextureOptions, ViewportCommand};
 use guide_capture::{
-    detect_backend, region_from_drag, run_capture, run_click_session, topmost_at, visible_rect,
-    CancelToken, CaptureBackend, CaptureError, CaptureMode, CaptureRequest, Monitor, Rect,
-    Screenshot, WindowInfo,
+    detect_backend, region_from_drag, resolve_repeat, run_capture, run_click_session, topmost_at,
+    visible_rect, CancelToken, CaptureBackend, CaptureError, CaptureMode, CaptureRequest,
+    LastCapture, Monitor, Rect, Screenshot, WindowInfo,
 };
 use guide_core::{
     canonical_key, find_duplicate, Action, ModeChoice, Shortcut, APP_NAME, APP_VERSION,
@@ -28,7 +28,8 @@ use guide_core::{Document, ProjectKind};
 use guide_hotkeys::{HotkeyBackend, PointerBackend};
 use guide_storage::{
     remember_recent, save_rgba, timestamped_stem, ClickCaptureOptions, EditBundle, EditorOptions,
-    ImageFormat, Profile, ProfileError, Settings, ShortcutSettings, ThemeChoice, MAX_CLICK_SHOTS,
+    ImageFormat, NotificationSettings, Profile, ProfileError, Settings, ShortcutSettings,
+    ThemeChoice, MAX_CLICK_SHOTS,
 };
 
 /// Settings are written this long after the last change, so typing in a
@@ -60,12 +61,19 @@ struct Selection {
 }
 
 /// The shortcut actions are named by the core crate in English; the window shows them translated.
+/// Whether the window stays minimized after a capture: only when the user turned the restore off
+/// and the captures go into an open project.
+fn keep_hidden(restore_after_capture: bool, has_project: bool, auto_add: bool) -> bool {
+    !restore_after_capture && has_project && auto_add
+}
+
 fn action_label(action: Action) -> &'static str {
     match action {
         Action::CaptureFullScreen => tr("Capture full screen"),
         Action::CaptureRegion => tr("Capture region"),
         Action::CaptureWindow => tr("Capture window"),
         Action::ToggleClickCapture => tr("Start or stop click capture"),
+        Action::RepeatCapture => tr("Repeat the last capture"),
     }
 }
 
@@ -87,6 +95,14 @@ enum HomeTab {
 
 /// Height of the full-width buttons under the capture mode grid.
 const TOGGLE_HEIGHT_BTN: f32 = theme::TOGGLE_HEIGHT;
+
+/// What the "New project" row on the Projects tab creates.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum NewProjectKind {
+    Guide,
+    Plain,
+    Diff,
+}
 
 pub struct MainApp {
     backend: Arc<dyn CaptureBackend>,
@@ -136,6 +152,10 @@ pub struct MainApp {
     previous: Option<(Screenshot, TextureHandle)>,
     /// Set while a region capture is running: pixel rect of the monitor to select on.
     pending_region: Option<Rect>,
+    /// How the last screenshot was taken, so it can be taken again.
+    last_capture: Option<LastCapture>,
+    /// A full-screen or monitor capture in flight; remembered once it succeeds.
+    pending_last: Option<LastCapture>,
     selection: Option<Selection>,
     status: String,
     editor: Option<EditorView>,
@@ -145,9 +165,14 @@ pub struct MainApp {
     auto_add: bool,
     new_project_title: String,
     /// The kind of project the "New project" form creates.
-    new_project_is_guide: bool,
+    new_project_kind: NewProjectKind,
     project_path: String,
     shortcuts: ShortcutSettings,
+    notifications: NotificationSettings,
+    restore_after_capture: bool,
+    /// The settings page's "send a test" in flight, and the last outcome shown beside the button.
+    notify_test: Option<mpsc::Receiver<Result<(), String>>>,
+    notify_test_result: Option<Result<(), String>>,
     language: String,
     theme: ThemeChoice,
     recent_projects: Vec<String>,
@@ -268,6 +293,8 @@ impl MainApp {
             last_kept: true,
             previous: None,
             pending_region: None,
+            last_capture: None,
+            pending_last: None,
             selection: None,
             status: String::new(),
             editor: None,
@@ -275,9 +302,13 @@ impl MainApp {
             project: None,
             auto_add: false,
             new_project_title: String::new(),
-            new_project_is_guide: true,
+            new_project_kind: NewProjectKind::Plain,
             project_path: String::new(),
             shortcuts: settings.shortcuts.clone(),
+            notifications: settings.notifications.clone(),
+            restore_after_capture: settings.restore_after_capture,
+            notify_test: None,
+            notify_test_result: None,
             language: settings.language.clone(),
             theme: settings.theme,
             recent_projects: settings.recent_projects.clone(),
@@ -330,6 +361,8 @@ impl MainApp {
             click_max: self.click_max,
             profiles: self.profiles_with_working_values(),
             active_profile: Some(self.active_profile.clone()),
+            notifications: self.notifications.clone(),
+            restore_after_capture: self.restore_after_capture,
         }
     }
 
@@ -441,12 +474,16 @@ impl MainApp {
         if self.capturing || self.click_session || self.selection.is_some() {
             return;
         }
+        if action == Action::RepeatCapture {
+            self.repeat_capture(ctx);
+            return;
+        }
         let caps = self.backend.capabilities();
         let (mode, support) = match action {
             Action::CaptureFullScreen => (ModeChoice::FullScreen, &caps.full_screen),
             Action::CaptureRegion => (ModeChoice::Region, &caps.region),
             Action::CaptureWindow => (ModeChoice::Window, &caps.window),
-            Action::ToggleClickCapture => return,
+            Action::ToggleClickCapture | Action::RepeatCapture => return,
         };
         match support {
             guide_capture::Support::Yes => self.start_capture(ctx, mode),
@@ -534,6 +571,155 @@ impl MainApp {
             }
             return;
         }
+    }
+
+    fn keeps_hidden(&self) -> bool {
+        keep_hidden(
+            self.restore_after_capture,
+            self.project.is_some(),
+            self.auto_add,
+        )
+    }
+
+    /// Whether the window comes back after a capture.
+    fn capture_ui(&mut self, ui: &mut egui::Ui) {
+        let pal = theme::palette(ui.ctx());
+        theme::card(ui, |ui| {
+            theme::card_row_sized(ui, true, 52.0, |ui| {
+                theme::checkbox(
+                    ui,
+                    &mut self.restore_after_capture,
+                    tr("Show the window again after a capture"),
+                );
+            });
+            theme::card_row_sized(ui, false, 52.0, |ui| {
+                ui.label(
+                    egui::RichText::new(tr(
+                        "When off, the window stays minimized while captures are added to an open project.",
+                    ))
+                    .color(pal.muted),
+                );
+            });
+        });
+    }
+
+    fn notify_cfg(&self) -> notify::NotifyCfg {
+        (&self.notifications).into()
+    }
+
+    /// Tells the desktop about something that finished, if the user wants that.
+    fn notify(&self, message: &str) {
+        notify::send(&self.notify_cfg(), APP_NAME, message);
+    }
+
+    /// Switch, command and a test button. Changes are saved with the settings.
+    fn notifications_ui(&mut self, ui: &mut egui::Ui) {
+        let pal = theme::palette(ui.ctx());
+        if let Some(rx) = &self.notify_test {
+            match rx.try_recv() {
+                Ok(r) => {
+                    self.notify_test_result = Some(r);
+                    self.notify_test = None;
+                }
+                Err(mpsc::TryRecvError::Empty) => {
+                    ui.ctx().request_repaint_after(Duration::from_millis(100))
+                }
+                Err(mpsc::TryRecvError::Disconnected) => self.notify_test = None,
+            }
+        }
+        theme::card(ui, |ui| {
+            theme::card_row_sized(ui, true, 52.0, |ui| {
+                theme::checkbox(
+                    ui,
+                    &mut self.notifications.enabled,
+                    tr("Show a notification after copying, saving or exporting"),
+                );
+            });
+            theme::card_row_sized(ui, false, 52.0, |ui| {
+                ui.add_enabled_ui(self.notifications.enabled, |ui| {
+                    theme::checkbox(
+                        ui,
+                        &mut self.notifications.on_capture,
+                        tr("Also when a screenshot is taken"),
+                    );
+                });
+            });
+            theme::card_row_sized(ui, false, 52.0, |ui| {
+                ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                    let label = ui.label(tr("Command"));
+                    ui.add(
+                        theme::text_singleline(&mut self.notifications.command)
+                            .font(egui::TextStyle::Monospace)
+                            .desired_width(f32::INFINITY),
+                    )
+                    .labelled_by(label.id);
+                });
+            });
+            theme::card_row_sized(ui, false, 52.0, |ui| {
+                ui.label(
+                    egui::RichText::new(tr(
+                        "{title} and {message} are replaced; the command is not run through a shell.",
+                    ))
+                    .color(pal.muted),
+                );
+            });
+            let problem = guide_core::check_command(&self.notifications.command).err();
+            theme::card_row_sized(ui, false, 52.0, |ui| {
+                if theme::Btn::new(tr("Send a test notification"), theme::Emphasis::Secondary)
+                    .compact()
+                    .show(ui)
+                    .clicked()
+                    && problem.is_none()
+                    && self.notify_test.is_none()
+                {
+                    self.notify_test_result = None;
+                    self.notify_test = Some(notify::test(
+                        &self.notifications.command,
+                        APP_NAME,
+                        tr("This is a test notification"),
+                    ));
+                }
+                if ui
+                    .add(
+                        egui::Button::new(egui::RichText::new(tr("Reset")).color(pal.muted))
+                            .frame(false),
+                    )
+                    .clicked()
+                {
+                    self.notifications.command = guide_core::DEFAULT_NOTIFY_COMMAND.to_string();
+                }
+                if let Some(p) = &problem {
+                    ui.label(
+                        egui::RichText::new(tr_fmt(
+                            "The command is not valid: {reason}",
+                            &[("reason", &p)],
+                        ))
+                        .color(pal.error),
+                    );
+                } else if self.notify_test.is_some() {
+                    ui.label(egui::RichText::new(tr("Sending...")).color(pal.muted));
+                } else {
+                    match &self.notify_test_result {
+                        Some(Ok(())) => {
+                            ui.label(
+                                egui::RichText::new(tr("The command ran successfully"))
+                                    .color(pal.muted),
+                            );
+                        }
+                        Some(Err(e)) => {
+                            ui.label(
+                                egui::RichText::new(tr_fmt(
+                                    "The test failed: {error}",
+                                    &[("error", &e)],
+                                ))
+                                .color(pal.error),
+                            );
+                        }
+                        None => {}
+                    }
+                }
+            });
+        });
     }
 
     /// Theme and language. Changes apply at once and are saved with the settings.
@@ -677,6 +863,10 @@ impl MainApp {
         };
         self.pending_region = matches!(mode, ModeChoice::Region | ModeChoice::Window)
             .then(|| self.monitor_under_window(ctx));
+        self.pending_last = self
+            .pending_region
+            .is_none()
+            .then(|| LastCapture::new(request.mode.clone()));
         let want_windows = mode == ModeChoice::Window;
         let (tx, rx) = mpsc::channel();
         let cancel = CancelToken::default();
@@ -707,6 +897,71 @@ impl MainApp {
         self.rx = Some(rx);
         self.cancel = Some(cancel);
         self.capturing = true;
+        self.status.clear();
+    }
+
+    /// Takes the last screenshot again (same region, window, monitor or full screen) without
+    /// the selection step. The window or monitor must still exist; otherwise the status says so.
+    fn repeat_capture(&mut self, ctx: &egui::Context) {
+        if self.capturing || self.click_session || self.selection.is_some() {
+            return;
+        }
+        let Some(last) = self.last_capture.clone() else {
+            self.status = tr("Nothing to repeat yet: take a screenshot first").into();
+            return;
+        };
+        let caps = self.backend.capabilities();
+        let support = match &last.mode {
+            CaptureMode::Region(_) => &caps.region,
+            CaptureMode::Window(_) => &caps.window,
+            _ => &caps.full_screen,
+        };
+        if let guide_capture::Support::No(why) = support {
+            self.status = tr_fmt(
+                "{action}: {reason}",
+                &[
+                    ("action", &action_label(Action::RepeatCapture)),
+                    ("reason", &why),
+                ],
+            );
+            return;
+        }
+        let include_cursor = self.include_cursor;
+        let monitors = self.monitors.clone();
+        let (tx, rx) = mpsc::channel();
+        let cancel = CancelToken::default();
+        let (backend, token, ctx2) = (self.backend.clone(), cancel.clone(), ctx.clone());
+        let delay = Duration::from_secs(self.delay_secs.into());
+        // Hide our own window so it isn't part of the screenshot.
+        ctx.send_viewport_cmd(ViewportCommand::Minimized(true));
+        thread::spawn(move || {
+            thread::sleep(Duration::from_millis(400));
+            let result = (|| {
+                // Looked up after our window is gone: a minimized window is not listed.
+                let windows = if matches!(last.mode, CaptureMode::Window(_)) {
+                    backend.windows()?
+                } else {
+                    Vec::new()
+                };
+                let request = CaptureRequest {
+                    mode: resolve_repeat(&last, &monitors, &windows)?,
+                    include_cursor,
+                };
+                let tick_tx = tx.clone();
+                let tick_ctx = ctx2.clone();
+                run_capture(&*backend, &request, delay, &token, |s| {
+                    let _ = tick_tx.send(Event::Tick(s));
+                    tick_ctx.request_repaint();
+                })
+            })();
+            let _ = tx.send(Event::Done(result, None));
+            ctx2.request_repaint();
+        });
+        self.rx = Some(rx);
+        self.cancel = Some(cancel);
+        self.capturing = true;
+        self.pending_region = None;
+        self.pending_last = None;
         self.status.clear();
     }
 
@@ -798,15 +1053,21 @@ impl MainApp {
                 ..Props::from(&self.editor_options).style_for(false)
             };
             g.add_capture_with_marker(&shot, at.filter(|_| self.click_marker), marker);
-        } else if let Err(e) = save_rgba(
-            std::path::Path::new(&self.out_dir),
-            &timestamped_stem(),
-            self.format,
-            shot.width,
-            shot.height,
-            &shot.rgba,
-        ) {
-            self.status = tr_fmt("Could not save the screenshot: {error}", &[("error", &e)]);
+        } else {
+            match save_rgba(
+                std::path::Path::new(&self.out_dir),
+                &timestamped_stem(),
+                self.format,
+                shot.width,
+                shot.height,
+                &shot.rgba,
+            ) {
+                Ok(p) => self.notify(&tr_fmt("Saved {path}", &[("path", &p.display())])),
+                Err(e) => {
+                    self.status =
+                        tr_fmt("Could not save the screenshot: {error}", &[("error", &e)]);
+                }
+            }
         }
         self.click_last = Some(shot);
     }
@@ -854,9 +1115,16 @@ impl MainApp {
                     self.cancel = None;
                     self.capturing = false;
                     self.countdown = None;
-                    ctx.send_viewport_cmd(ViewportCommand::Minimized(false));
-                    ctx.send_viewport_cmd(ViewportCommand::Focus);
                     let region = self.pending_region.take();
+                    // A selection needs the window as its overlay, and a failure needs to be seen.
+                    if !(result.is_ok() && region.is_none() && self.keeps_hidden()) {
+                        ctx.send_viewport_cmd(ViewportCommand::Minimized(false));
+                        ctx.send_viewport_cmd(ViewportCommand::Focus);
+                    }
+                    let pending_last = self.pending_last.take();
+                    if result.is_ok() && pending_last.is_some() {
+                        self.last_capture = pending_last;
+                    }
                     match result {
                         Ok(shot) if region.is_some() => {
                             self.begin_selection(ctx, shot, region, windows)
@@ -960,6 +1228,7 @@ impl MainApp {
         }
         let show_help = self.gui && !self.gui_help_hidden && sel.start.is_none();
         let mut chosen = None;
+        let mut chosen_window: Option<(u32, String)> = None;
         egui::CentralPanel::default()
             .frame(egui::Frame::NONE)
             .show(ctx, |ui| {
@@ -1069,6 +1338,7 @@ impl MainApp {
                             );
                             if resp.clicked() {
                                 chosen = Some(vis);
+                                chosen_window = Some((w.id, w.title.clone()));
                             }
                         }
                     }
@@ -1097,7 +1367,16 @@ impl MainApp {
             });
         if let Some(region) = chosen {
             let result = sel.full.crop(region);
+            if result.is_ok() {
+                self.last_capture = Some(match chosen_window {
+                    Some((id, title)) => LastCapture::window(id, &title),
+                    None => LastCapture::new(CaptureMode::Region(region)),
+                });
+            }
             self.end_selection(ctx);
+            if result.is_ok() && !self.gui && self.keeps_hidden() {
+                ctx.send_viewport_cmd(ViewportCommand::Minimized(true));
+            }
             match result {
                 Ok(shot) if self.gui => self.open_gui_editor(ctx, &shot),
                 Ok(shot) => self.show_capture(ctx, shot),
@@ -1135,6 +1414,9 @@ impl MainApp {
             "Captured {width}x{height}",
             &[("width", &shot.width), ("height", &shot.height)],
         );
+        if self.notifications.on_capture {
+            self.notify(&self.status);
+        }
         // Test hook for the end-to-end tests: write every finished capture to this folder.
         if let Some(dir) = std::env::var_os("SNAPFORGE_TEST_AUTOSAVE_DIR") {
             if let Err(e) = save_rgba(
@@ -1337,6 +1619,19 @@ impl MainApp {
                     self.start_capture(ctx, self.mode);
                 }
             });
+            ui.add_enabled_ui(can_capture && self.last_capture.is_some(), |ui| {
+                let chip = self.shortcuts.get(Action::RepeatCapture).to_string();
+                if theme::Btn::new(tr("Repeat last capture"), theme::Emphasis::Secondary)
+                    .chip(&chip)
+                    .name(tr("Repeat last capture"))
+                    .full_width(36.0)
+                    .show(ui)
+                    .clicked()
+                {
+                    self.repeat_capture(ctx);
+                }
+            });
+            ui.add_space(4.0);
             if self.capturing || self.countdown.is_some() {
                 ui.horizontal(|ui| {
                     if self.capturing && ui.button(tr("Cancel (Esc)")).clicked() {
@@ -1452,12 +1747,20 @@ impl MainApp {
         }
         ui.horizontal(|ui| {
             ui.label(tr("New project"));
-            ui.selectable_value(&mut self.new_project_is_guide, true, tr("Guide"))
+            ui.selectable_value(
+                &mut self.new_project_kind,
+                NewProjectKind::Plain,
+                tr("Plain"),
+            )
+            .on_hover_text(tr("A set of screenshots to edit and export one by one"));
+            ui.selectable_value(&mut self.new_project_kind, NewProjectKind::Guide, tr("Guide"))
                 .on_hover_text(tr(
                     "Numbered steps with an introduction, final notes and a combined image",
                 ));
-            ui.selectable_value(&mut self.new_project_is_guide, false, tr("Plain project"))
-                .on_hover_text(tr("A set of screenshots to edit and export one by one"));
+            ui.selectable_value(&mut self.new_project_kind, NewProjectKind::Diff, tr("Diff"))
+                .on_hover_text(tr(
+                    "A previous and a post screenshot, side by side or stacked, with a header and captions",
+                ));
             ui.add(
                 crate::theme::text_singleline(&mut self.new_project_title)
                     .hint_text(tr("title"))
@@ -1669,6 +1972,14 @@ impl MainApp {
                                 ui.add_space(4.0);
                                 self.appearance_ui(ui);
                                 ui.add_space(24.0);
+                                theme::section_label(ui, tr("Capture"));
+                                ui.add_space(4.0);
+                                self.capture_ui(ui);
+                                ui.add_space(24.0);
+                                theme::section_label(ui, tr("Notifications"));
+                                ui.add_space(4.0);
+                                self.notifications_ui(ui);
+                                ui.add_space(24.0);
                             },
                         );
                     });
@@ -1702,6 +2013,10 @@ impl MainApp {
             (
                 tr("Start or stop click capture"),
                 self.shortcuts.toggle_click_capture.clone(),
+            ),
+            (
+                tr("Repeat the last capture"),
+                self.shortcuts.repeat_capture.clone(),
             ),
         ];
         let anywhere = tr_fmt("Anywhere (while {app} is running)", &[("app", &APP_NAME)]);
@@ -1893,10 +2208,10 @@ impl MainApp {
         match ProjectView::create(
             &PathBuf::from(&self.out_dir),
             &self.new_project_title,
-            if self.new_project_is_guide {
-                ProjectKind::Guide(Default::default())
-            } else {
-                ProjectKind::Plain
+            match self.new_project_kind {
+                NewProjectKind::Guide => ProjectKind::Guide(Default::default()),
+                NewProjectKind::Plain => ProjectKind::Plain,
+                NewProjectKind::Diff => ProjectKind::Diff(Default::default()),
             },
         ) {
             Ok(g) => {
@@ -1972,7 +2287,9 @@ impl MainApp {
         ) {
             Ok(p) => {
                 self.last_kept = true;
-                tr_fmt("Saved {path}", &[("path", &p.display())])
+                let done = tr_fmt("Saved {path}", &[("path", &p.display())]);
+                self.notify(&done);
+                done
             }
             Err(e) => {
                 self.error_dialog = Some((tr("Cannot save the screenshot").into(), e.to_string()));
@@ -1991,6 +2308,7 @@ impl MainApp {
         self.status = match crate::clipboard::copy_image_persistent(&img) {
             Ok(()) => {
                 self.last_kept = true;
+                self.notify(tr("Copied to the clipboard"));
                 tr("Copied to the clipboard").into()
             }
             Err(e) => tr_fmt("Copy failed: {error}", &[("error", &e)]),
@@ -2127,6 +2445,7 @@ impl eframe::App for MainApp {
                 }
             }
         }
+        let editor_notify = self.notify_cfg();
         if let Some(ed) = &mut self.editor {
             let names: Vec<String> = self.profiles.iter().map(|p| p.name.clone()).collect();
             ed.set_profiles(&names, &self.active_profile);
@@ -2134,6 +2453,7 @@ impl eframe::App for MainApp {
                 out_dir: PathBuf::from(&self.out_dir),
                 format: self.format,
                 gui: self.gui,
+                notify: editor_notify,
             };
             let exit = ed.show(ctx, &env);
             self.editor_options = ed.options();
@@ -2186,6 +2506,7 @@ impl eframe::App for MainApp {
         }
 
         let style = ctx.style();
+        let notify_cfg = self.notify_cfg();
         if let Some(g) = &mut self.project {
             let mut bar = ProjectBar {
                 auto_add: &mut self.auto_add,
@@ -2195,6 +2516,7 @@ impl eframe::App for MainApp {
                 countdown: self.countdown,
                 app_status: &self.status,
             };
+            g.set_notify(notify_cfg);
             let commands = g.show(ctx, &mut bar);
             for c in commands {
                 match c {
@@ -2291,6 +2613,19 @@ pub(crate) fn texture_for(ctx: &egui::Context, name: &str, shot: &Screenshot) ->
 
 #[cfg(test)]
 mod tests {
+    use super::keep_hidden;
+
+    #[test]
+    fn the_window_stays_hidden_only_when_restoring_is_off_and_captures_go_to_a_project() {
+        assert!(keep_hidden(false, true, true));
+        assert!(!keep_hidden(true, true, true), "restoring is on");
+        assert!(!keep_hidden(false, false, true), "no project is open");
+        assert!(
+            !keep_hidden(false, true, false),
+            "captures are not added to the project"
+        );
+    }
+
     use super::*;
 
     #[test]

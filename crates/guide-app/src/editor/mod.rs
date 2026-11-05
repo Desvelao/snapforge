@@ -45,6 +45,8 @@ pub struct Env {
     pub format: ImageFormat,
     /// `snapforge gui`: Enter copies and quits, Ctrl+S saves an image file and quits.
     pub gui: bool,
+    /// Desktop notification after a copy, save or export.
+    pub notify: crate::notify::NotifyCfg,
 }
 
 /// `snapforge gui`: the shortcut list in the middle (selection screen) or the top right corner
@@ -106,6 +108,10 @@ pub(crate) fn shortcut_rows() -> Vec<(String, String)> {
             tr("Del").into(),
         ),
         (tr("Fit / actual size").into(), tr("0 / 1").into()),
+        (
+            tr("Move the selected annotation").into(),
+            tr("Arrow keys (Shift: 10 px)").into(),
+        ),
         (tr("Choose a tool").into(), tools.join(" ")),
         (tr("Show or hide this help").into(), tr("F1").into()),
     ]
@@ -163,6 +169,21 @@ impl Tool {
             Tool::Blur => tr("Blur"),
             Tool::Crop => tr("Crop"),
             Tool::Eraser => tr("Eraser"),
+        }
+    }
+
+    /// The tool that draws this kind of annotation.
+    fn for_kind(kind: &Kind) -> Tool {
+        match kind {
+            Kind::Pen { .. } => Tool::Pen,
+            Kind::Highlighter { .. } => Tool::Highlighter,
+            Kind::Line { .. } => Tool::Line,
+            Kind::Arrow { .. } => Tool::Arrow,
+            Kind::Rectangle { .. } => Tool::Rectangle,
+            Kind::Ellipse { .. } => Tool::Ellipse,
+            Kind::Text { .. } => Tool::Text,
+            Kind::Marker { .. } => Tool::Marker,
+            Kind::Obscure { .. } => Tool::Blur,
         }
     }
 
@@ -279,6 +300,8 @@ pub struct EditorView {
     tool: Tool,
     props: Props,
     selected: Option<AnnotationId>,
+    /// The canvas widget of the last frame, to tell whether it has keyboard focus.
+    canvas_id: Option<egui::Id>,
     gesture: Option<Gesture>,
     text: Option<TextEditing>,
     /// Pixelated/blurred pictures of `Obscure` annotations, keyed by id.
@@ -540,6 +563,7 @@ impl EditorView {
             tool: Tool::Select,
             props: Props::default(),
             selected: None,
+            canvas_id: None,
             gesture: None,
             text: None,
             patches: HashMap::new(),
@@ -710,6 +734,87 @@ impl EditorView {
         }
     }
 
+    /// Tab / Shift+Tab walk through the annotations; the arrow keys move the selected one by a
+    /// pixel (ten with Shift). Tab only counts while the canvas has focus, so it still moves
+    /// between the toolbar buttons elsewhere; arrows work unless another widget has focus.
+    fn keyboard_select_and_nudge(&mut self, ctx: &egui::Context, shift: bool) {
+        let (canvas_focus, nothing_focused) = ctx.memory(|m| {
+            (
+                self.canvas_id.is_some_and(|id| m.has_focus(id)),
+                m.focused().is_none(),
+            )
+        });
+        let pressed = |k: Key| ctx.input(|i| i.key_pressed(k));
+        if canvas_focus && pressed(Key::Tab) {
+            self.commit_text();
+            let ids: Vec<AnnotationId> = self
+                .editor
+                .document()
+                .annotations
+                .iter()
+                .map(|a| a.id)
+                .collect();
+            if !ids.is_empty() {
+                let at = self.selected.and_then(|s| ids.iter().position(|&i| i == s));
+                let next = match (at, shift) {
+                    (None, false) => 0,
+                    (None, true) => ids.len() - 1,
+                    (Some(i), false) => (i + 1) % ids.len(),
+                    (Some(i), true) => (i + ids.len() - 1) % ids.len(),
+                };
+                self.select(Some(ids[next]));
+            }
+        }
+        if !(canvas_focus || nothing_focused) {
+            return;
+        }
+        let step = if shift { 10.0 } else { 1.0 };
+        let (dx, dy) = [
+            (Key::ArrowLeft, (-step, 0.0)),
+            (Key::ArrowRight, (step, 0.0)),
+            (Key::ArrowUp, (0.0, -step)),
+            (Key::ArrowDown, (0.0, step)),
+        ]
+        .into_iter()
+        .filter(|(k, _)| pressed(*k))
+        .fold((0.0, 0.0), |(x, y), (_, (a, b))| (x + a, y + b));
+        if dx != 0.0 || dy != 0.0 {
+            if let Some(mut a) = self.selected_annotation() {
+                self.commit_text();
+                a.translate(dx, dy);
+                self.patches.remove(&a.id);
+                let changed = self.editor.replace_continuing(a);
+                self.touched(changed);
+            }
+        }
+    }
+
+    /// What a screen reader says about the canvas: how many annotations there are and which
+    /// one is selected.
+    fn canvas_label(&self) -> String {
+        let doc = self.editor.document();
+        let count = doc.annotations.len();
+        let selected = self
+            .selected
+            .and_then(|id| doc.annotations.iter().position(|a| a.id == id));
+        match selected {
+            Some(i) => tr_fmt(
+                "Drawing area. Selected: {kind}, {pos} of {count}. Arrow keys move it, Shift for larger steps; Tab selects the next one.",
+                &[
+                    ("kind", &Tool::for_kind(&doc.annotations[i].kind).label()),
+                    ("pos", &(i + 1)),
+                    ("count", &count),
+                ],
+            ),
+            None => tr_n(
+                "Drawing area. {n} annotation. Tab selects one; or use the toolbar to choose a tool, then drag on the screenshot.",
+                "Drawing area. {n} annotations. Tab selects one; or use the toolbar to choose a tool, then drag on the screenshot.",
+                count,
+                &[],
+            ),
+        }
+    }
+
     fn after_history(&mut self, changed: bool) {
         self.touched(changed);
         self.patches.clear();
@@ -874,7 +979,9 @@ impl EditorView {
         self.status = match result {
             Ok(dir) => {
                 self.saved = SavedState::of(self.editor.document());
-                tr_fmt("Saved edit to {folder}", &[("folder", &dir.display())])
+                let done = tr_fmt("Saved edit to {folder}", &[("folder", &dir.display())]);
+                crate::notify::send(&env.notify, guide_core::APP_NAME, &done);
+                done
             }
             Err(e) => tr_fmt("Save failed: {error}", &[("error", &e)]),
         };
@@ -902,6 +1009,7 @@ impl EditorView {
             ctx.clone(),
         );
         let (dir, format) = (env.out_dir.clone(), env.format);
+        let notify = env.notify.clone();
         let name = format!("{}.{}", timestamped_stem(), format.extension());
         let title = tr("Save the screenshot").to_string();
         let (tx, rx) = mpsc::channel();
@@ -918,25 +1026,29 @@ impl EditorView {
                     },
                 };
                 let img = render(&orig, &doc).map_err(|e| e.to_string())?;
-                match (how, chosen) {
-                    (Finish::Copy, _) => crate::clipboard::copy_image_persistent(&img),
+                let message = match (how, chosen) {
+                    (Finish::Copy, _) => crate::clipboard::copy_image_persistent(&img)
+                        .map(|()| tr("Copied to the clipboard").to_string())?,
                     (Finish::SaveFile, Some(path)) => {
                         save_rgba_at(&path, format, img.width, img.height, &img.rgba)
-                            .map(|_| ())
-                            .map_err(|e| e.to_string())
+                            .map_err(|e| e.to_string())?;
+                        tr_fmt("Saved {path}", &[("path", &path.display())])
                     }
-                    (Finish::SaveFile, None) => save_rgba(
-                        &dir,
-                        &timestamped_stem(),
-                        format,
-                        img.width,
-                        img.height,
-                        &img.rgba,
-                    )
-                    .map(|_| ())
-                    .map_err(|e| e.to_string()),
-                }
-                .map(|()| true)
+                    (Finish::SaveFile, None) => {
+                        let p = save_rgba(
+                            &dir,
+                            &timestamped_stem(),
+                            format,
+                            img.width,
+                            img.height,
+                            &img.rgba,
+                        )
+                        .map_err(|e| e.to_string())?;
+                        tr_fmt("Saved {path}", &[("path", &p.display())])
+                    }
+                };
+                crate::notify::send(&notify, guide_core::APP_NAME, &message);
+                Ok(true)
             })();
             let _ = tx.send(result);
             ctx2.request_repaint();
@@ -959,18 +1071,26 @@ impl EditorView {
             env.format,
             format!("{}-edited", timestamped_stem()),
         );
+        let notify = env.notify.clone();
         let (tx, rx) = mpsc::channel();
         thread::spawn(move || {
             let msg = match render(&orig, &doc) {
                 Ok(img) => match save_rgba(&dir, &stem, format, img.width, img.height, &img.rgba) {
-                    Ok(p) => tr_fmt(
-                        "Exported {width}x{height} to {path}",
-                        &[
-                            ("width", &img.width),
-                            ("height", &img.height),
-                            ("path", &p.display()),
-                        ],
-                    ),
+                    Ok(p) => {
+                        crate::notify::send(
+                            &notify,
+                            guide_core::APP_NAME,
+                            &tr_fmt("Saved {path}", &[("path", &p.display())]),
+                        );
+                        tr_fmt(
+                            "Exported {width}x{height} to {path}",
+                            &[
+                                ("width", &img.width),
+                                ("height", &img.height),
+                                ("path", &p.display()),
+                            ],
+                        )
+                    }
                     Err(e) => tr_fmt("Export failed: {error}", &[("error", &e)]),
                 },
                 Err(e) => tr_fmt("Export failed: {error}", &[("error", &e)]),
@@ -1179,7 +1299,12 @@ impl EditorView {
     }
 
     fn handle_keys(&mut self, ctx: &egui::Context, env: &Env) {
-        if ctx.wants_keyboard_input() {
+        // A focused canvas is not a text field: the shortcuts keep working (and Tab, the arrows
+        // and Esc are not taken by egui's focus navigation, see `canvas`).
+        let canvas_focused = self
+            .canvas_id
+            .is_some_and(|id| ctx.memory(|m| m.has_focus(id)));
+        if ctx.wants_keyboard_input() && !canvas_focused {
             return;
         }
         let (cmd, shift, esc, del) = ctx.input(|i| {
@@ -1234,6 +1359,9 @@ impl EditorView {
         }
         if del && editing {
             self.delete_selected();
+        }
+        if editing && self.tool == Tool::Select && self.gesture.is_none() {
+            self.keyboard_select_and_nudge(ctx, shift);
         }
         if pressed(Key::Num0) {
             self.needs_fit = true;
@@ -1447,18 +1575,9 @@ impl EditorView {
         let pal = theme::palette(ctx);
         let selected = self.selected_annotation();
         // What the controls apply to: the selection, otherwise the current tool.
-        let kind_tool = match selected.as_ref().map(|a| &a.kind) {
-            Some(Kind::Pen { .. }) => Tool::Pen,
-            Some(Kind::Highlighter { .. }) => Tool::Highlighter,
-            Some(Kind::Line { .. }) => Tool::Line,
-            Some(Kind::Arrow { .. }) => Tool::Arrow,
-            Some(Kind::Rectangle { .. }) => Tool::Rectangle,
-            Some(Kind::Ellipse { .. }) => Tool::Ellipse,
-            Some(Kind::Text { .. }) => Tool::Text,
-            Some(Kind::Marker { .. }) => Tool::Marker,
-            Some(Kind::Obscure { .. }) => Tool::Blur,
-            None => self.tool,
-        };
+        let kind_tool = selected
+            .as_ref()
+            .map_or(self.tool, |a| Tool::for_kind(&a.kind));
         let has_selection = selected.is_some();
         let mut changed = false;
 
@@ -1711,12 +1830,22 @@ impl EditorView {
             self.last_canvas_size = Some(rect.size());
         }
         let resp = ui.allocate_rect(rect, Sense::click_and_drag());
-        resp.widget_info(|| {
-            egui::WidgetInfo::labeled(
-                egui::WidgetType::Other,
-                true,
-                tr("Drawing area. Use the toolbar to choose a tool, then drag on the screenshot."),
+        self.canvas_id = Some(resp.id);
+        // Keep Tab and the arrows for the annotations while the canvas has focus.
+        ctx.memory_mut(|m| {
+            m.set_focus_lock_filter(
+                resp.id,
+                egui::EventFilter {
+                    tab: true,
+                    horizontal_arrows: true,
+                    vertical_arrows: true,
+                    escape: false,
+                },
             )
+        });
+        let label = self.canvas_label();
+        resp.widget_info(|| {
+            egui::WidgetInfo::labeled(egui::WidgetType::Other, true, label.clone())
         });
         let ppp = ctx.pixels_per_point();
         if self.needs_fit {
@@ -2323,6 +2452,27 @@ mod tests {
     }
 
     /// Runs `handle_keys` for one frame in which `key` goes down (with Ctrl when `ctrl`).
+    /// Registers the stand-in canvas widget each frame, as the real canvas does, so egui keeps
+    /// its focus.
+    fn keep_test_canvas(ctx: &egui::Context, id: Option<egui::Id>) {
+        if let Some(id) = id {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                ui.interact(ui.max_rect(), id, Sense::click());
+            });
+            ctx.memory_mut(|m| {
+                m.set_focus_lock_filter(
+                    id,
+                    egui::EventFilter {
+                        tab: true,
+                        horizontal_arrows: true,
+                        vertical_arrows: true,
+                        escape: false,
+                    },
+                )
+            });
+        }
+    }
+
     fn press(v: &mut EditorView, ctx: &egui::Context, key: Key, ctrl: bool) {
         press_in(v, ctx, key, ctrl, false);
     }
@@ -2332,6 +2482,7 @@ mod tests {
             out_dir: PathBuf::new(),
             format: ImageFormat::Png,
             gui,
+            notify: Default::default(),
         };
         let modifiers = if ctrl {
             egui::Modifiers::COMMAND
@@ -2349,7 +2500,10 @@ mod tests {
             }],
             ..Default::default()
         };
-        let _ = ctx.run(input, |ctx| v.handle_keys(ctx, &env));
+        let _ = ctx.run(input, |ctx| {
+            keep_test_canvas(ctx, v.canvas_id);
+            v.handle_keys(ctx, &env)
+        });
     }
 
     fn view_with_a_selected_rectangle(ctx: &egui::Context) -> (EditorView, AnnotationId) {
@@ -2367,6 +2521,98 @@ mod tests {
         );
         v.select(Some(id));
         (v, id)
+    }
+
+    fn press_shift(v: &mut EditorView, ctx: &egui::Context, key: Key) {
+        let env = Env {
+            out_dir: PathBuf::new(),
+            format: ImageFormat::Png,
+            gui: false,
+            notify: Default::default(),
+        };
+        let modifiers = egui::Modifiers::SHIFT;
+        let input = egui::RawInput {
+            modifiers,
+            events: vec![egui::Event::Key {
+                key,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers,
+            }],
+            ..Default::default()
+        };
+        let _ = ctx.run(input, |ctx| {
+            keep_test_canvas(ctx, v.canvas_id);
+            v.handle_keys(ctx, &env)
+        });
+    }
+
+    fn origin(v: &EditorView, id: AnnotationId) -> f32 {
+        match &v.editor.document().find(id).unwrap().kind {
+            Kind::Rectangle { rect } => rect.x,
+            _ => unreachable!(),
+        }
+    }
+
+    #[test]
+    fn arrow_keys_nudge_the_selection_by_one_pixel_or_ten_with_shift_as_one_undo_step() {
+        let ctx = egui::Context::default();
+        let (mut v, id) = view_with_a_selected_rectangle(&ctx);
+        press(&mut v, &ctx, Key::ArrowRight, false);
+        assert_eq!(origin(&v, id), 2.0);
+        press_shift(&mut v, &ctx, Key::ArrowRight);
+        assert_eq!(origin(&v, id), 12.0);
+        press(&mut v, &ctx, Key::ArrowLeft, false);
+        assert_eq!(origin(&v, id), 11.0);
+        v.undo();
+        assert_eq!(origin(&v, id), 1.0, "the nudges merge into one undo step");
+    }
+
+    #[test]
+    fn tab_cycles_through_the_annotations_while_the_canvas_has_focus() {
+        let ctx = egui::Context::default();
+        let (mut v, first) = view_with_a_selected_rectangle(&ctx);
+        let second = v.add(
+            Kind::Rectangle {
+                rect: rect(8.0, 8.0, 3.0, 3.0),
+            },
+            Style::default(),
+        );
+        v.select(Some(first));
+        let canvas = egui::Id::new("test-canvas");
+        v.canvas_id = Some(canvas);
+        let _ = ctx.run(Default::default(), |ctx| {
+            keep_test_canvas(ctx, Some(canvas));
+            ctx.memory_mut(|m| m.request_focus(canvas));
+        });
+        // The focus lock filter only takes hold from the second frame of having focus.
+        let _ = ctx.run(Default::default(), |ctx| {
+            keep_test_canvas(ctx, Some(canvas));
+        });
+        press(&mut v, &ctx, Key::Tab, false);
+        assert_eq!(v.selected, Some(second));
+        press(&mut v, &ctx, Key::Tab, false);
+        assert_eq!(v.selected, Some(first), "wraps around");
+        press_shift(&mut v, &ctx, Key::Tab);
+        assert_eq!(v.selected, Some(second), "Shift+Tab goes back");
+    }
+
+    #[test]
+    fn the_canvas_label_reports_the_count_and_the_selection() {
+        let ctx = egui::Context::default();
+        let (mut v, _) = view_with_a_selected_rectangle(&ctx);
+        let label = v.canvas_label();
+        assert!(
+            label.contains("Rectangle") && label.contains("1 of 1"),
+            "{label}"
+        );
+        v.select(None);
+        assert!(
+            v.canvas_label().contains("1 annotation"),
+            "{}",
+            v.canvas_label()
+        );
     }
 
     #[test]
@@ -2443,6 +2689,7 @@ mod tests {
             out_dir: dir.to_path_buf(),
             format: ImageFormat::Png,
             gui,
+            notify: Default::default(),
         }
     }
 

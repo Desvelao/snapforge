@@ -1,9 +1,11 @@
 //! Domain models shared by every component (no UI, no I/O).
 
 mod annotation;
+mod diff;
 mod guide;
 mod history;
 mod mode;
+mod notify;
 mod project;
 mod shortcut;
 
@@ -11,11 +13,13 @@ pub use annotation::{
     arrow_head_len, Annotation, AnnotationId, Kind, ObscureMode, PixelRect, Point, RectF, Rgba,
     Style,
 };
+pub use diff::{DiffLayout, DiffSettings};
 pub use guide::{
     CompositionSettings, DescriptionPlacement, ImageAlign, ImageScaling, Layout, StepLayout,
 };
 pub use history::{Command, Document, Editor, DEFAULT_UNDO_DEPTH, DOCUMENT_VERSION};
 pub use mode::ModeChoice;
+pub use notify::{check_command, parse_command, split_command, DEFAULT_NOTIFY_COMMAND};
 pub use project::{
     asset_path_problem, new_project_id, slug, GuideSettings, Item, ItemId, NewItem, Project,
     ProjectError, ProjectKind, PROJECT_SCHEMA_VERSION,

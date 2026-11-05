@@ -562,3 +562,78 @@ fn cropped_size_uses_the_crop_when_present() {
         (30, 20)
     );
 }
+
+fn diff_with(
+    layout: guide_core::DiffLayout,
+) -> (Project, Vec<ItemId>, HashMap<ItemId, (u32, u32)>) {
+    let mut d = Project::new_diff("Login page");
+    {
+        let s = d.diff_mut().unwrap();
+        s.layout = layout;
+        s.margin = 20;
+        s.spacing = 16;
+    }
+    let mut sizes = HashMap::new();
+    let ids: Vec<ItemId> = ["Before", "After"]
+        .iter()
+        .enumerate()
+        .map(|(i, cap)| {
+            let id = d.add_item(
+                usize::MAX,
+                NewItem {
+                    title: (*cap).into(),
+                    description: String::new(),
+                    caption: (*cap).into(),
+                    image: format!("assets/s{i}.png"),
+                },
+            );
+            sizes.insert(id, (400, 300));
+            id
+        })
+        .collect();
+    (d, ids, sizes)
+}
+
+#[test]
+fn a_horizontal_diff_puts_the_screenshots_side_by_side_at_one_height() {
+    let (d, ids, sizes) = diff_with(guide_core::DiffLayout::Horizontal);
+    let l = compute_diff_layout(&d, &sizes).unwrap();
+    assert_eq!(l.images.len(), 2);
+    let (a, b) = (&l.images[0], &l.images[1]);
+    assert_eq!((a.step, b.step), (ids[0], ids[1]));
+    assert_eq!(a.rect.y, b.rect.y);
+    assert_eq!(a.rect.h, b.rect.h);
+    assert_eq!(b.rect.x, a.rect.x + a.rect.w + 16.0);
+    assert_eq!(l.width, (20.0 * 2.0 + 400.0 * 2.0 + 16.0) as u32);
+}
+
+#[test]
+fn a_vertical_diff_stacks_the_screenshots_at_one_width() {
+    let (d, _, sizes) = diff_with(guide_core::DiffLayout::Vertical);
+    let l = compute_diff_layout(&d, &sizes).unwrap();
+    let (a, b) = (&l.images[0], &l.images[1]);
+    assert_eq!(a.rect.x, b.rect.x);
+    assert_eq!(a.rect.w, b.rect.w);
+    assert!(b.rect.y >= a.rect.y + a.rect.h + 16.0);
+}
+
+#[test]
+fn diff_header_and_captions_are_optional() {
+    let (mut d, _, sizes) = diff_with(guide_core::DiffLayout::Horizontal);
+    d.diff_mut().unwrap().description = "What changed".into();
+    let with_all = compute_diff_layout(&d, &sizes).unwrap();
+    let texts: Vec<String> = with_all
+        .texts
+        .iter()
+        .flat_map(|t| t.lines.clone())
+        .collect();
+    assert!(texts.contains(&"Login page".to_string()), "{texts:?}");
+    assert!(texts.contains(&"What changed".to_string()));
+    assert!(texts.contains(&"Before".to_string()) && texts.contains(&"After".to_string()));
+
+    d.diff_mut().unwrap().show_header = false;
+    d.diff_mut().unwrap().show_captions = false;
+    let bare = compute_diff_layout(&d, &sizes).unwrap();
+    assert!(bare.texts.is_empty());
+    assert!(bare.height < with_all.height);
+}

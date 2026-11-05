@@ -8,14 +8,17 @@ pub enum Action {
     CaptureWindow,
     /// Starts or stops a session that captures on every mouse click.
     ToggleClickCapture,
+    /// Takes the last screenshot again: same region, window, monitor or full screen.
+    RepeatCapture,
 }
 
 impl Action {
-    pub const ALL: [Action; 4] = [
+    pub const ALL: [Action; 5] = [
         Action::CaptureFullScreen,
         Action::CaptureRegion,
         Action::CaptureWindow,
         Action::ToggleClickCapture,
+        Action::RepeatCapture,
     ];
 
     /// The English name used in diagnostics: `--self-test` output and settings repair notes (which
@@ -27,6 +30,7 @@ impl Action {
             Action::CaptureRegion => "Capture region",
             Action::CaptureWindow => "Capture window",
             Action::ToggleClickCapture => "Start or stop click capture",
+            Action::RepeatCapture => "Repeat the last capture",
         }
     }
 
@@ -37,6 +41,7 @@ impl Action {
             Action::CaptureRegion => "R",
             Action::CaptureWindow => "W",
             Action::ToggleClickCapture => "C",
+            Action::RepeatCapture => "A",
         };
         Shortcut {
             ctrl: true,

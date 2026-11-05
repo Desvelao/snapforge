@@ -21,7 +21,8 @@ use guide_core::{
 };
 use guide_render::{
     compose::{
-        compute_layout, compute_layout_from, render_layout, render_layout_until, ComposeError,
+        compute_diff_layout, compute_layout, compute_layout_from, render_layout,
+        render_layout_until, ComposeError,
     },
     render, Image,
 };
@@ -230,10 +231,10 @@ pub fn export(
         );
         return report;
     }
-    if options.mode == ExportMode::Combined && !project.is_guide() {
+    if options.mode == ExportMode::Combined && project.guide().is_none() && !project.is_diff() {
         report.problem(
             None,
-            "Only a guide can be exported as one combined image. Export the screenshots as separate images instead.",
+            "Only a guide or a diff can be exported as one combined image. Export the screenshots as separate images instead.",
         );
         return report;
     }
@@ -367,7 +368,12 @@ fn combined(
         message: "Working out the layout".into(),
     });
     let sizes = store.item_sizes(project);
-    let mut layout = match compute_layout(project, &sizes) {
+    let composed = if project.is_diff() {
+        compute_diff_layout(project, &sizes)
+    } else {
+        compute_layout(project, &sizes)
+    };
+    let mut layout = match composed {
         Ok(l) => l,
         Err(e) => {
             report.problem(None, e.to_string());

@@ -1406,7 +1406,7 @@ dependencies = [
 
 [[package]]
 name = "guide-app"
-version = "0.1.0-alpha1"
+version = "0.1.0-alpha2"
 dependencies = [
  "arboard",
  "eframe",
@@ -1426,7 +1426,7 @@ dependencies = [
 
 [[package]]
 name = "guide-capture"
-version = "0.1.0-alpha1"
+version = "0.1.0-alpha2"
 dependencies = [
  "thiserror 2.0.21",
  "tracing",
@@ -1435,7 +1435,7 @@ dependencies = [
 
 [[package]]
 name = "guide-core"
-version = "0.1.0-alpha1"
+version = "0.1.0-alpha2"
 dependencies = [
  "serde",
  "serde_json",
@@ -1443,7 +1443,7 @@ dependencies = [
 
 [[package]]
 name = "guide-export"
-version = "0.1.0-alpha1"
+version = "0.1.0-alpha2"
 dependencies = [
  "guide-core",
  "guide-render",
@@ -1453,7 +1453,7 @@ dependencies = [
 
 [[package]]
 name = "guide-hotkeys"
-version = "0.1.0-alpha1"
+version = "0.1.0-alpha2"
 dependencies = [
  "guide-core",
  "thiserror 2.0.21",
@@ -1462,7 +1462,7 @@ dependencies = [
 
 [[package]]
 name = "guide-render"
-version = "0.1.0-alpha1"
+version = "0.1.0-alpha2"
 dependencies = [
  "ab_glyph",
  "guide-core",
@@ -1472,7 +1472,7 @@ dependencies = [
 
 [[package]]
 name = "guide-storage"
-version = "0.1.0-alpha1"
+version = "0.1.0-alpha2"
 dependencies = [
  "guide-core",
  "guide-render",

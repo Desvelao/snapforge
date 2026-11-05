@@ -15,7 +15,7 @@ pub use project_store::{
     EXPORTS_DIR, MANIFEST_FILE, MAX_IMAGE_PIXELS, MAX_MANIFEST_BYTES,
 };
 pub use settings::{
-    remember_recent, ClickCaptureOptions, EditorOptions, Loaded, Profile, ProfileError, Settings,
-    SettingsError, ShortcutSettings, ThemeChoice, CURRENT_VERSION, DEFAULT_PROFILE,
-    MAX_CLICK_SHOTS, MAX_PROFILES, MAX_PROFILE_NAME, MAX_RECENT,
+    remember_recent, ClickCaptureOptions, EditorOptions, Loaded, NotificationSettings, Profile,
+    ProfileError, Settings, SettingsError, ShortcutSettings, ThemeChoice, CURRENT_VERSION,
+    DEFAULT_PROFILE, MAX_CLICK_SHOTS, MAX_PROFILES, MAX_PROFILE_NAME, MAX_RECENT,
 };

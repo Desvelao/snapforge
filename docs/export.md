@@ -5,8 +5,11 @@ Status: both export modes are implemented and tested (`guide-export`, driven by 
 
 ## Two modes
 - **One image per step.** Each *included* step becomes its own file.
-- **One combined image (guides only).** The whole guide is laid out as a single picture by the composition engine
+- **One combined image (guides and diffs).** The whole guide is laid out as a single picture by the composition engine
   (see `docs/composition.md`): title, introduction, numbered steps with titles and descriptions, final notes.
+
+A **diff** is exported as one combined image of its previous and post screenshot, side by side or stacked, with the
+optional header and the captions under the screenshots.
 
 Steps with "Include in export" switched off are never exported in either mode.
 

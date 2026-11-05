@@ -16,7 +16,8 @@ when `XDG_CONFIG_HOME` is not set. The file is plain JSON:
     "capture_full_screen": "Ctrl+Shift+F",
     "capture_region": "Ctrl+Shift+R",
     "capture_window": "Ctrl+Shift+W",
-    "toggle_click_capture": "Ctrl+Shift+C"
+    "toggle_click_capture": "Ctrl+Shift+C",
+    "repeat_capture": "Ctrl+Shift+A"
   },
   "click_marker": false,
   "click_max": 0,
@@ -55,7 +56,7 @@ under "Appearance and recent items" below.
 
 ## Global shortcuts
 Defaults: Ctrl+Shift+F (full screen), Ctrl+Shift+R (region), Ctrl+Shift+W (window),
-Ctrl+Shift+C (start or stop click capture).
+Ctrl+Shift+C (start or stop click capture), Ctrl+Shift+A (repeat the last capture).
 Print is not used by default because desktops such as XFCE already bind it.
 
 - A shortcut needs at least one of Ctrl, Alt, Shift or Super, so it cannot steal ordinary typing.
@@ -79,6 +80,32 @@ Print is not used by default because desktops such as XFCE already bind it.
 | `language` | `""` = automatic; otherwise a language code (see `docs/i18n.md`). |
 | `theme` | `System`, `Light` or `Dark`. |
 | `recent_projects`, `recent_edits` | The last 10 folders opened, newest first, without duplicates. Folders that no longer exist are listed as missing with a "Forget" button. |
+
+## Capture
+
+| Field | Meaning |
+|---|---|
+| `restore_after_capture` | `true` (default): the window comes back after a capture. `false`: it stays minimized while captures are added to an open project ("Add captures to the project"), so you can keep capturing with the shortcuts. A region or window pick still shows the selection screen first and minimizes again afterwards. Turn on the notification for captures to get feedback while the window is hidden. |
+
+## Capture
+
+| Field | Meaning |
+|---|---|
+| `restore_after_capture` | `true` (default): the window comes back after a capture. `false`: it stays minimized while captures are added to an open project ("Add captures to the project"), so you can keep capturing with the shortcuts. A region or window pick still shows the selection screen first and minimizes again afterwards. Turn on the notification for captures to get feedback while the window is hidden. |
+
+## Notifications
+
+| Field | Meaning |
+|---|---|
+| `notifications.enabled` | `true` (default): announce a finished copy, image save, edit save, project save and export. Autosave is never announced. |
+| `notifications.on_capture` | `true` (default): also announce each screenshot taken. Needs `enabled`. |
+| `notifications.command` | The program to run, default `notify-send --app-name=Snapforge {title} {message}`. |
+
+The command is split into words the way a shell would (single and double quotes, backslash) but is **not**
+run by a shell: no pipes, no `$(...)`, no variables. `{title}` and `{message}` are replaced inside each
+word, so a file name with odd characters stays one argument. An empty or unbalanced command is reset to the
+default when the settings are read. Settings > Notifications has a "Send a test notification" button that
+shows whether the command ran and what it printed if it failed. A failing command is otherwise ignored.
 
 ## Click capture
 A session started with Ctrl+Shift+C (or the "Click capture" button) takes a screenshot at every left

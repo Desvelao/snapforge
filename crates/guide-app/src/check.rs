@@ -3,7 +3,7 @@
 
 use std::{fmt::Write, path::Path};
 
-use guide_render::compose::compute_layout;
+use guide_render::compose::{compute_diff_layout, compute_layout};
 use guide_storage::ProjectStore;
 
 pub const OK: i32 = 0;
@@ -22,6 +22,8 @@ pub fn run(dir: &Path) -> (i32, String) {
     let included = p.included_items().count();
     let (kind, unit) = if p.is_guide() {
         ("Guide", "step(s)")
+    } else if p.is_diff() {
+        ("Diff", "screenshot(s)")
     } else {
         ("Project", "screenshot(s)")
     };
@@ -40,8 +42,22 @@ pub fn run(dir: &Path) -> (i32, String) {
         problems += 1;
         let _ = writeln!(out, "Problem: {}", issue.message);
     }
-    if p.is_guide() {
-        match compute_layout(p, &o.store.item_sizes(p)) {
+    if p.is_diff() && included != guide_core::Project::DIFF_ITEMS {
+        problems += 1;
+        let _ = writeln!(
+            out,
+            "Problem: a diff needs {} screenshots (a previous and a post one) but has {included} included",
+            guide_core::Project::DIFF_ITEMS
+        );
+    }
+    if p.is_guide() || p.is_diff() {
+        let sizes = o.store.item_sizes(p);
+        let composed = if p.is_diff() {
+            compute_diff_layout(p, &sizes)
+        } else {
+            compute_layout(p, &sizes)
+        };
+        match composed {
             Ok(l) => {
                 let _ = writeln!(out, "Combined image would be {} x {} px", l.width, l.height);
             }
@@ -120,6 +136,18 @@ mod tests {
                 && text.contains("2 screenshot(s)")
                 && !text.contains("Combined image")
                 && text.trim_end().ends_with("OK"),
+            "{text}"
+        );
+        fs::remove_dir_all(&d).unwrap();
+    }
+
+    #[test]
+    fn a_diff_is_checked_for_its_two_screenshots_and_its_image_size() {
+        let (_, _, d) = project_of("diff", Project::new_diff("Before and after"));
+        let (code, text) = run(&d);
+        assert_eq!(code, OK, "{text}");
+        assert!(
+            text.contains("Diff \"Before and after\"") && text.contains("Combined image would be"),
             "{text}"
         );
         fs::remove_dir_all(&d).unwrap();

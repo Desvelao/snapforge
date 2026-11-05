@@ -23,7 +23,7 @@ use guide_export::{
     planned_files, Cancel, ExportMode, ExportOptions, ExportReport, NameStyle, Progress,
 };
 use guide_render::{
-    compose::{compute_layout, render_layout, ComposedLayout},
+    compose::{compute_diff_layout, compute_layout, render_layout, ComposedLayout},
     render,
     resample::resample,
     Image,
@@ -176,6 +176,8 @@ pub struct ProjectView {
     status: String,
     /// Why the last save failed; shown as a banner until a save works.
     save_error: Option<String>,
+    /// Desktop notification after an explicit save or an export.
+    notify: crate::notify::NotifyCfg,
     report_path: Option<PathBuf>,
     last_report: String,
     /// Where things were drawn last frame (window-relative points); feeds the test report.
@@ -274,6 +276,7 @@ impl ProjectView {
             dirty_since: None,
             status,
             save_error: None,
+            notify: Default::default(),
             report_path: std::env::var_os("SNAPFORGE_TEST_GUIDE_REPORT").map(PathBuf::from),
             last_report: String::new(),
             layout: Layout::default(),
@@ -313,10 +316,12 @@ impl ProjectView {
     pub fn create(parent: &Path, title: &str, kind: ProjectKind) -> Result<Self, String> {
         let title = if !title.trim().is_empty() {
             title.trim()
-        } else if matches!(kind, ProjectKind::Plain) {
-            tr("Untitled project")
         } else {
-            tr("Untitled guide")
+            match kind {
+                ProjectKind::Plain => tr("Untitled project"),
+                ProjectKind::Guide(_) => tr("Untitled guide"),
+                ProjectKind::Diff(_) => tr("Untitled diff"),
+            }
         };
         let dir = new_project_dir(parent, title);
         let project = Project::new(title, kind);
@@ -367,9 +372,16 @@ impl ProjectView {
     fn untitled(&self) -> &'static str {
         if self.project.is_guide() {
             tr("Untitled guide")
+        } else if self.project.is_diff() {
+            tr("Untitled diff")
         } else {
             tr("Untitled project")
         }
+    }
+
+    /// Whether this project is drawn as one composed image (a guide or a diff).
+    fn composes(&self) -> bool {
+        self.project.is_guide() || self.project.is_diff()
     }
 
     pub fn dir(&self) -> &Path {
@@ -399,6 +411,22 @@ impl ProjectView {
     }
 
     // ---- saving -------------------------------------------------------------------
+
+    /// Set by the window around the guide whenever the notification settings change.
+    pub fn set_notify(&mut self, cfg: crate::notify::NotifyCfg) {
+        self.notify = cfg;
+    }
+
+    fn announce(&self, message: &str) {
+        crate::notify::send(&self.notify, guide_core::APP_NAME, message);
+    }
+
+    /// A save the user asked for (button, Ctrl+S, "Try again"); unlike autosave it is announced.
+    fn save_by_request(&mut self) {
+        if self.save_now() {
+            self.announce(tr("Project saved"));
+        }
+    }
 
     /// Writes the guide now. Returns `false` (and shows why) if it could not be saved.
     pub fn save_now(&mut self) -> bool {
@@ -477,14 +505,38 @@ impl ProjectView {
             .map_or(usize::MAX, |i| i + 1)
     }
 
+    /// A diff holds a previous and a post screenshot, no more; says so when it is full.
+    fn diff_is_full(&mut self) -> bool {
+        if self.project.can_add_item() {
+            return false;
+        }
+        self.status =
+            tr("A diff has a previous and a post screenshot; remove one to add another").into();
+        true
+    }
+
     fn add_step_with_image(&mut self, rel: String, title: String) {
+        if self.diff_is_full() {
+            return;
+        }
         let index = self.insert_position();
+        // A diff names its screenshots by role, and captions them the same way until edited.
+        let (title, caption) = if self.project.is_diff() {
+            let role = if self.project.items.is_empty() {
+                tr("Before")
+            } else {
+                tr("After")
+            };
+            (role.to_string(), role.to_string())
+        } else {
+            (title, String::new())
+        };
         let id = self.project.add_item(
             index,
             NewItem {
                 title,
                 description: String::new(),
-                caption: String::new(),
+                caption,
                 image: rel,
             },
         );
@@ -496,6 +548,9 @@ impl ProjectView {
     /// Adds a screenshot as a new step after the selected one (or at the end).
     pub fn add_capture(&mut self, shot: &Screenshot) {
         // Not "Step N": a step inserted in the middle would get a misleading number.
+        if self.diff_is_full() {
+            return;
+        }
         let title = tr("New step").to_string();
         match self
             .store
@@ -549,6 +604,9 @@ impl ProjectView {
     }
 
     fn import(&mut self) {
+        if self.diff_is_full() {
+            return;
+        }
         let path = PathBuf::from(self.import_path.trim());
         match self.store.import_image(&path) {
             Ok((rel, w, h)) => {
@@ -868,7 +926,7 @@ impl ProjectView {
                             .show(ui)
                             .clicked()
                         {
-                            self.save_now();
+                            self.save_by_request();
                         }
                         let dirty = self.is_dirty();
                         ui.label(if dirty {
@@ -963,7 +1021,7 @@ impl ProjectView {
                     tr_fmt("Your changes are NOT saved: {error}", &[("error", &error)]),
                 );
                 if ui.button(tr("Try again")).clicked() {
-                    self.save_now();
+                    self.save_by_request();
                 }
                 if ui.button(tr("Copy details")).clicked() {
                     ui.ctx().copy_text(error.clone());
@@ -983,7 +1041,7 @@ impl ProjectView {
         if cmd && pressed(Key::E) {
             self.start_export(ctx);
         } else if cmd && pressed(Key::S) {
-            self.save_now();
+            self.save_by_request();
         } else if cmd && pressed(Key::D) {
             self.duplicate_selected();
         } else if ctx.wants_keyboard_input() {
@@ -1474,8 +1532,8 @@ impl ProjectView {
 
     /// Collects finished previews and starts a new one when something changed.
     fn pump_composition(&mut self, ctx: &egui::Context) {
-        if !self.project.is_guide() {
-            return; // only a guide has a combined image
+        if !self.composes() {
+            return; // only a guide or a diff has a combined image
         }
         while let Ok(m) = self.comp_rx.try_recv() {
             self.comp_running = false;
@@ -1518,7 +1576,12 @@ impl ProjectView {
         thread::spawn(move || {
             let result = (|| -> Result<(ComposedLayout, Screenshot, f32), String> {
                 let sizes = store.item_sizes(&project);
-                let mut layout = compute_layout(&project, &sizes).map_err(|e| e.to_string())?;
+                let mut layout = if project.is_diff() {
+                    compute_diff_layout(&project, &sizes)
+                } else {
+                    compute_layout(&project, &sizes)
+                }
+                .map_err(|e| e.to_string())?;
                 layout.missing_label = missing_label;
                 if final_res
                     && u64::from(layout.width) * u64::from(layout.height) > FINAL_PREVIEW_MAX_PIXELS
@@ -1593,6 +1656,7 @@ impl ProjectView {
     fn preview_panel(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
         let ppp = ctx.pixels_per_point();
         let is_guide = self.project.is_guide();
+        let composed = self.composes();
         let pal = theme::palette(ui.ctx());
         egui::Frame::new()
             .inner_margin(egui::Margin::symmetric(16, 8))
@@ -1625,7 +1689,7 @@ impl ProjectView {
                         self.right_open = !self.right_open;
                     }
                     self.layout.toggle_right = Some(r.rect);
-                    if is_guide {
+                    if composed {
                         let r = theme::toggle_sized(
                             ui,
                             self.final_preview,
@@ -1660,7 +1724,7 @@ impl ProjectView {
                 });
             });
         ui.separator();
-        if !is_guide {
+        if !composed {
             if !self.status.is_empty() {
                 ui.label(&self.status);
             }
@@ -1719,7 +1783,9 @@ impl ProjectView {
                         tr("The guide cannot be drawn with these settings."),
                     );
                 } else {
-                    ui.label(if self.project.items.is_empty() {
+                    ui.label(if self.project.is_diff() && self.project.items.is_empty() {
+                        tr("Add the previous and the post screenshot to see the diff.")
+                    } else if self.project.items.is_empty() {
                         tr("Add a step to see the guide: capture with Ctrl+N, then press \"Add to project\".")
                     } else {
                         tr("Drawing the preview...")
@@ -1938,6 +2004,7 @@ impl ProjectView {
             )
             .labelled_by(label.id)
             .changed();
+        changed |= self.diff_settings(ui);
         if let Some(g) = self.project.guide_mut() {
             ui.add_space(6.0);
             let label = theme::section_label(ui, tr("Introduction"));
@@ -2035,6 +2102,87 @@ impl ProjectView {
             });
         }
         changed
+    }
+
+    /// Header, arrangement and look of a diff. Does nothing for other kinds.
+    fn diff_settings(&mut self, ui: &mut egui::Ui) -> bool {
+        use crate::editor::props::{from_color32, to_color32};
+        use guide_core::DiffLayout;
+        let Some(d) = self.project.diff_mut() else {
+            return false;
+        };
+        let before = d.clone();
+        ui.add_space(6.0);
+        theme::section_label(ui, tr("Arrangement"));
+        ui.horizontal(|ui| {
+            let label = ui.label(tr("Screenshots"));
+            combo(
+                ui,
+                label.id,
+                "diff-arrangement",
+                &mut d.layout,
+                &[
+                    (DiffLayout::Horizontal, tr("side by side")),
+                    (DiffLayout::Vertical, tr("one above the other")),
+                ],
+            );
+        });
+        ui.add_space(6.0);
+        theme::checkbox_tile(ui, &mut d.show_header, tr("Header"));
+        if d.show_header {
+            let label = theme::section_label(ui, tr("Header title"));
+            ui.add(
+                crate::theme::text_singleline(&mut d.title)
+                    .hint_text(tr("Defaults to the name"))
+                    .desired_width(f32::INFINITY),
+            )
+            .labelled_by(label.id);
+            let label = theme::section_label(ui, tr("Header description"));
+            ui.add(
+                crate::theme::text_multiline(&mut d.description)
+                    .hint_text(tr("What changed?"))
+                    .desired_rows(3)
+                    .desired_width(f32::INFINITY),
+            )
+            .labelled_by(label.id);
+        }
+        ui.add_space(6.0);
+        theme::checkbox_tile(ui, &mut d.show_captions, tr("Captions"));
+        ui.add_space(6.0);
+        ui.horizontal(|ui| {
+            ui.label(tr("Background"));
+            let mut bg = to_color32(d.background);
+            if ui.color_edit_button_srgba(&mut bg).changed() {
+                d.background = from_color32(bg);
+            }
+            ui.label(tr("Text"));
+            let mut fg = to_color32(d.text_color);
+            if ui.color_edit_button_srgba(&mut fg).changed() {
+                d.text_color = from_color32(fg);
+            }
+        });
+        ui.horizontal(|ui| {
+            let label = ui.label(tr("Margin"));
+            ui.add(
+                egui::DragValue::new(&mut d.margin)
+                    .range(0..=300)
+                    .suffix(" px"),
+            )
+            .labelled_by(label.id);
+            let label = ui.label(tr("Spacing"));
+            ui.add(
+                egui::DragValue::new(&mut d.spacing)
+                    .range(0..=300)
+                    .suffix(" px"),
+            )
+            .labelled_by(label.id);
+        });
+        ui.horizontal(|ui| {
+            let label = ui.label(tr("Text size"));
+            ui.add(egui::DragValue::new(&mut d.font_size).range(8.0..=120.0))
+                .labelled_by(label.id);
+        });
+        *d != before
     }
 
     /// The selected step: position, order buttons, text fields and per-step overrides.
@@ -2437,6 +2585,7 @@ impl ProjectView {
                             ],
                         )
                     };
+                    self.announce(&self.status);
                     self.export.last = Some(report);
                     self.export.running = None;
                     self.export.progress = None;
@@ -2450,8 +2599,9 @@ impl ProjectView {
 
     fn export_section(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
         let is_guide = self.project.is_guide();
-        if !is_guide {
-            // Only a guide can be written as one combined image.
+        let composed = self.composes();
+        if !composed {
+            // Only a guide or a diff can be written as one combined image.
             self.export.mode = ExportMode::Separate;
         }
         theme::section_label(ui, tr("Export"));
@@ -2472,7 +2622,7 @@ impl ProjectView {
                     self.export.mode = ExportMode::Separate;
                 }
                 self.layout.export_separate = Some(a.rect);
-                if is_guide {
+                if composed {
                     let b = theme::toggle_sized(
                         ui,
                         self.export.mode == ExportMode::Combined,

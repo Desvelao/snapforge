@@ -6,6 +6,10 @@
 //! [`ComposedLayout`] with [`render_layout`], so they cannot disagree about where
 //! things go; the preview just draws it at a smaller `scale`.
 
+mod diff;
+
+pub use diff::compute_diff_layout;
+
 use std::collections::HashMap;
 
 use guide_core::{

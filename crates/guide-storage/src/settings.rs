@@ -19,6 +19,7 @@ pub struct ShortcutSettings {
     pub capture_region: String,
     pub capture_window: String,
     pub toggle_click_capture: String,
+    pub repeat_capture: String,
 }
 
 impl Default for ShortcutSettings {
@@ -28,6 +29,7 @@ impl Default for ShortcutSettings {
             capture_region: Action::CaptureRegion.default_shortcut().to_string(),
             capture_window: Action::CaptureWindow.default_shortcut().to_string(),
             toggle_click_capture: Action::ToggleClickCapture.default_shortcut().to_string(),
+            repeat_capture: Action::RepeatCapture.default_shortcut().to_string(),
         }
     }
 }
@@ -39,6 +41,7 @@ impl ShortcutSettings {
             Action::CaptureRegion => &self.capture_region,
             Action::CaptureWindow => &self.capture_window,
             Action::ToggleClickCapture => &self.toggle_click_capture,
+            Action::RepeatCapture => &self.repeat_capture,
         }
     }
 
@@ -48,6 +51,7 @@ impl ShortcutSettings {
             Action::CaptureRegion => &mut self.capture_region,
             Action::CaptureWindow => &mut self.capture_window,
             Action::ToggleClickCapture => &mut self.toggle_click_capture,
+            Action::RepeatCapture => &mut self.repeat_capture,
         };
         *slot = shortcut.to_string();
     }
@@ -222,6 +226,27 @@ fn lenient(text: &str) -> Option<(Settings, Vec<String>)> {
     Some((settings, ignored))
 }
 
+/// Desktop notifications after a copy, save or export.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct NotificationSettings {
+    pub enabled: bool,
+    /// Also announce each screenshot taken (full screen, monitor, region, window or repeat).
+    pub on_capture: bool,
+    /// Command template; `{title}` and `{message}` are replaced. Never run through a shell.
+    pub command: String,
+}
+
+impl Default for NotificationSettings {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            on_capture: true,
+            command: guide_core::DEFAULT_NOTIFY_COMMAND.to_string(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
@@ -250,6 +275,10 @@ pub struct Settings {
     /// Name of the profile selected last; restored on start.
     #[serde(default = "Option::default")]
     pub active_profile: Option<String>,
+    pub notifications: NotificationSettings,
+    /// Show the window again after a capture. When off, it stays minimized while captures are
+    /// being added to an open project.
+    pub restore_after_capture: bool,
 }
 
 impl Default for Settings {
@@ -275,6 +304,8 @@ impl Default for Settings {
             click_max: 0,
             profiles: vec![Profile::default()],
             active_profile: Some(DEFAULT_PROFILE.to_string()),
+            notifications: NotificationSettings::default(),
+            restore_after_capture: true,
         }
     }
 }
@@ -325,6 +356,12 @@ impl Settings {
                 self.click_max
             ));
             self.click_max = MAX_CLICK_SHOTS;
+        }
+        if let Err(e) = guide_core::check_command(&self.notifications.command) {
+            notes.push(format!(
+                "The notification command is invalid ({e}); reset to the default"
+            ));
+            self.notifications.command = guide_core::DEFAULT_NOTIFY_COMMAND.to_string();
         }
         self.sanitize_profiles(&mut notes);
         notes
@@ -621,8 +658,39 @@ mod tests {
                 capture_region: "Ctrl+Alt+R".into(),
                 ..ShortcutSettings::default()
             },
+            notifications: NotificationSettings {
+                enabled: false,
+                on_capture: false,
+                command: "dunstify {title} {message}".into(),
+            },
+            restore_after_capture: false,
             ..Settings::default()
         }
+    }
+
+    #[test]
+    fn a_file_without_notification_settings_gets_the_defaults() {
+        let d = dir("no-notify");
+        fs::create_dir_all(&d).unwrap();
+        let path = d.join("settings.json");
+        fs::write(&path, r#"{"version":1,"delay_secs":3}"#).unwrap();
+        let l = Settings::load(&path);
+        assert_eq!(l.settings.notifications, NotificationSettings::default());
+        assert_eq!(l.settings.delay_secs, 3);
+        assert!(l.settings.restore_after_capture);
+        fs::remove_dir_all(&d).unwrap();
+    }
+
+    #[test]
+    fn an_unusable_notification_command_is_reset_to_the_default() {
+        let mut s = Settings::default();
+        s.notifications.command = "notify-send 'oops".into();
+        let notes = s.sanitize();
+        assert_eq!(notes.len(), 1);
+        assert_eq!(s.notifications, NotificationSettings::default());
+        s.notifications.command = "  ".into();
+        s.sanitize();
+        assert_eq!(s.notifications.command, guide_core::DEFAULT_NOTIFY_COMMAND);
     }
 
     #[test]

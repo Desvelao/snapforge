@@ -6,6 +6,7 @@
 mod backend;
 mod cursor;
 mod region;
+mod repeat;
 mod session;
 mod windows;
 mod x11;
@@ -13,6 +14,7 @@ mod x11;
 pub use backend::{detect_backend, CaptureBackend, UnavailableBackend};
 pub use cursor::{composite_cursor, CursorImage};
 pub use region::region_from_drag;
+pub use repeat::{resolve_repeat, LastCapture};
 pub use session::{run_capture, run_click_session, CancelToken};
 pub use windows::{frame_rect, topmost_at, visible_rect, IRect, WindowInfo};
 

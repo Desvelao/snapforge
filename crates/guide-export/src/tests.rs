@@ -769,3 +769,30 @@ fn a_step_that_hides_its_description_gets_a_shorter_image_with_text() {
     );
     fs::remove_dir_all(&f.root).unwrap();
 }
+
+#[test]
+fn a_diff_exports_as_one_image_with_the_previous_screenshot_first() {
+    let mut f = fixture("diff-combined", &["Before", "After"]);
+    f.project.kind = guide_core::ProjectKind::Diff(Default::default());
+    f.project.name = "Settings page".into();
+    f.store.save(&f.project).unwrap();
+    let r = run(&f, &opts(&f, ExportMode::Combined));
+    assert!(r.is_complete(), "{:?}", r.problems);
+    assert_eq!(names(&r), ["settings-page.png"]);
+    let layout = compute_diff_layout(&f.project, &f.store.item_sizes(&f.project)).unwrap();
+    assert_eq!(
+        (r.written[0].width, r.written[0].height),
+        (layout.width, layout.height)
+    );
+    for (item, colour) in layout.images.iter().zip(COLOURS) {
+        assert_eq!(
+            px(
+                &r.written[0].path,
+                (item.rect.x + item.rect.w / 2.0) as u32,
+                (item.rect.y + item.rect.h / 2.0) as u32
+            ),
+            colour
+        );
+    }
+    fs::remove_dir_all(&f.root).unwrap();
+}

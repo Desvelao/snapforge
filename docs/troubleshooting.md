@@ -49,6 +49,13 @@ disable that behaviour in the manager.
 **The overlay appears on the wrong monitor.** Multi-monitor placement is untested; the overlay is
 meant to open on the monitor under the pointer and falls back to the primary one.
 
+## No notifications appear
+
+Notifications run the command under Settings > Notifications, by default `notify-send` from libnotify.
+Press "Send a test notification" there: it shows when the program is missing or exits with an error.
+Install `libnotify-bin` (Debian, Ubuntu) or `libnotify` (Fedora, Arch), make sure a notification daemon
+is running, or set another command such as `dunstify {title} {message}`.
+
 ## The file dialog does not open
 
 "Save as file" in `snapforge gui` and the "Browse..." buttons use the system file dialog through the

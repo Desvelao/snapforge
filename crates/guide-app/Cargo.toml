@@ -41,6 +41,7 @@ This application takes screenshots of the screen, a monitor, a region or a windo
 lets you annotate them, and assembles screenshots into a numbered guide that \
 can be exported as separate images or one long image. Capture works on X11."""
 depends = "libc6 (>= 2.35), libx11-6, libxcursor1, libxi6, libxrender1, libx11-xcb1, libxcb1, libxkbcommon0, libxkbcommon-x11-0, libegl1 | libgl1"
+recommends = "libnotify-bin"
 assets = [
     ["target/release/snapforge", "usr/bin/snapforge", "755"],
     ["../../dist/render/snapforge.desktop", "usr/share/applications/snapforge.desktop", "644"],
@@ -86,3 +87,6 @@ libxcb = "*"
 libxkbcommon = "*"
 libxkbcommon-x11 = "*"
 libglvnd-egl = "*"
+
+[package.metadata.generate-rpm.recommends]
+libnotify = "*"

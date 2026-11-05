@@ -17,6 +17,7 @@ use serde_json::{Map, Value};
 
 use crate::{
     annotation::MAX_ID,
+    diff::DiffSettings,
     guide::{CompositionSettings, StepLayout},
     history::Document,
 };
@@ -88,6 +89,8 @@ pub enum ProjectKind {
     Plain,
     /// Numbered steps that can also be composed into one long image.
     Guide(GuideSettings),
+    /// A previous and a post screenshot composed into one image.
+    Diff(DiffSettings),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -251,23 +254,54 @@ impl Project {
         Self::new(name, ProjectKind::Guide(GuideSettings::default()))
     }
 
-    /// The guide-only settings, or `None` for a plain project.
+    pub fn new_diff(name: impl Into<String>) -> Self {
+        Self::new(name, ProjectKind::Diff(DiffSettings::default()))
+    }
+
+    /// The guide-only settings, or `None` for a plain or diff project.
     pub fn guide(&self) -> Option<&GuideSettings> {
         match &self.kind {
             ProjectKind::Guide(g) => Some(g),
-            ProjectKind::Plain => None,
+            _ => None,
         }
     }
 
     pub fn guide_mut(&mut self) -> Option<&mut GuideSettings> {
         match &mut self.kind {
             ProjectKind::Guide(g) => Some(g),
-            ProjectKind::Plain => None,
+            _ => None,
         }
     }
 
     pub fn is_guide(&self) -> bool {
         self.guide().is_some()
+    }
+
+    /// The diff-only settings, or `None` for any other kind.
+    pub fn diff(&self) -> Option<&DiffSettings> {
+        match &self.kind {
+            ProjectKind::Diff(d) => Some(d),
+            _ => None,
+        }
+    }
+
+    pub fn diff_mut(&mut self) -> Option<&mut DiffSettings> {
+        match &mut self.kind {
+            ProjectKind::Diff(d) => Some(d),
+            _ => None,
+        }
+    }
+
+    pub fn is_diff(&self) -> bool {
+        self.diff().is_some()
+    }
+
+    /// Diff projects hold a previous and a post screenshot, never more.
+    pub const DIFF_ITEMS: usize = 2;
+
+    /// Whether another screenshot may be added: always, except to a full diff.
+    pub fn can_add_item(&self) -> bool {
+        !self.is_diff() || self.items.len() < Self::DIFF_ITEMS
     }
 
     pub fn index_of(&self, id: ItemId) -> Option<usize> {
@@ -399,6 +433,9 @@ impl Project {
     /// composition values are clamped, per-step layouts of steps that do not exist are dropped and
     /// per-step widths are clamped like the guide-wide one. One sentence per change.
     pub fn sanitize(&mut self) -> Vec<String> {
+        if let Some(diff) = self.diff_mut() {
+            return diff.sanitize();
+        }
         let ids: HashSet<ItemId> = self.items.iter().map(|s| s.id).collect();
         let Some(guide) = self.guide_mut() else {
             return Vec::new();

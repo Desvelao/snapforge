@@ -50,9 +50,15 @@ A guide:
   "next_item_id": 2
 }
 ```
+A diff has `"kind": { "type": "diff", ... }` and holds exactly two items: the first is the previous screenshot, the
+second the post one. Its settings (all optional): `layout` (`"horizontal"` or `"vertical"`), `show_header`, `title`
+(falls back to the project name), `description`, `show_captions` (each item's `caption` is drawn under it),
+`background`, `text_color`, `margin`, `spacing`, `font_size`. It is an additive kind, so the format version stays 1; an
+older version cannot read such a project and reports it as damaged.
+
 A plain project has `"kind": { "type": "plain" }` and no guide settings; everything else is the same.
 - `project_id` is fixed when the project is created and never changes.
-- `kind.type` is `"plain"` or `"guide"`. Guide-only data (introduction, final notes, composition, `step_layouts`) lives
+- `kind.type` is `"plain"`, `"guide"` or `"diff"`. Guide-only data (introduction, final notes, composition, `step_layouts`) lives
   inside `kind`, so a plain project cannot carry it.
 - Item `id`s are stable and never reused, even after an item is deleted. Reordering, duplicating and
   deleting other items never changes an item's id or its `image`. `step_layouts` is keyed by item id.
@@ -154,7 +160,7 @@ Exit codes: **0** healthy, **1** cannot be opened, **2** opens but has problems 
 ## Using projects
 Open the **Projects** section of the main window.
 
-- **New project:** choose **Guide** or **Plain project**, type a title and press Create. The project is a folder named after
+- **New project:** choose **Plain** (the default), **Guide** or **Diff**, type a title and press Create. The project is a folder named after
   the title (`<output folder>/<title>.snapforgeproj`; `-2`, `-3`... if the name is taken).
 - **Open project:** pick one from the recent list, or paste the folder path and press Open. A damaged `project.json` is
   recovered from the backup (you are told), and items with missing or unreadable screenshots are listed under "Problems"
